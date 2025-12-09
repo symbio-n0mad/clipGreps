@@ -1,4 +1,4 @@
-# clipGreps: Clipboard Grep and Replace
+# clipGreps: Clipboard Grep and Substitute
 ## clipGre.ps1
 
 A lightweight PowerShell script for **filter** or **search & replace operations** directly on your **clipboard content**.
@@ -46,7 +46,7 @@ You can achieve this easily using a **desktop shortcut** that launches PowerShel
    - Right-click on your desktop → **New → Shortcut**  
    - For the location, enter something like:
      ```powershell
-     powershell.exe -ExecutionPolicy Bypass -File "C:\Path\To\cclipGre.ps1" -r -i -searchText "foo.*bar" -replaceText "baz"
+     powershell.exe -ExecutionPolicy Bypass -File "C:\Path\To\clipGre.ps1" -i -searchText "foo.bar" -replaceText "baz"
      ```
      >  `-ExecutionPolicy Bypass` ensures the script runs without restrictions, even if PowerShell’s default policy is limited.
 
@@ -87,11 +87,12 @@ All other functional flags are categorized as extended capabilities:
 - Can **output to file** instead of clipboard (`-write`)  
   - If no filename is given, a **timestamp** is used  
   - Optional explicit filename via `-saveAs <FILENAME>`
+    - timestamp gets added additionally
 
 - **Time delay** before script ends (`-timeout <SECONDS>`, decimals allowed)  
-  - Negative values introduce a **delay before execution** (useful for fullscreen applications)
+  - Negative values introduce a **delay _before_ execution** (useful for fullscreen applications)
 
-- **Exit requires confirmation** (Terminal stays open) (`-confirm`)
+- **Exit requires confirmation** (Terminal stays open until pressing enter `-confirm`)
     - For arbitrary additional peeking time, terminal might be closed after results are evaluated 
 
 - Activate **standard settings** (`-standard`)  
