@@ -9,6 +9,7 @@ A lightweight PowerShell script for **filter** or **search & replace operations*
 These are the core, productive features:
 
 - Supports **inline strings** (`-search foo`, `-replace bar`) or **text files** (see below) as search/replace ammo  
+  - Reads your clipboard, modifies it and puts changes back into the clipboard
 - Includes a **grep-like search** mode (`-grep`) for quick text filtering 🔍  
   - Displays: literal match, full line containing the match, the line number and overall match count
 - Optional **RegEx** mode (`-r`) and **case-insensitive mode** (`-ci`)  
