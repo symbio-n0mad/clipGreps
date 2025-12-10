@@ -48,7 +48,7 @@ You can achieve this easily using a **desktop shortcut** that launches PowerShel
    - Right-click on your desktop → **New → Shortcut**  
    - For the location, enter something like:
      ```powershell
-     powershell.exe -ExecutionPolicy Bypass -File "C:\Path\To\clipGre.ps1" -i -searchText "foo.bar" -replaceText "baz"
+     powershell.exe -ExecutionPolicy Bypass -File "C:\Path\To\clipGre.ps1" -ci -searchText "foo.bar" -replaceText "baz"
      ```
      >  `-ExecutionPolicy Bypass` ensures the script runs without restrictions, even if PowerShell’s default policy is limited.
 
