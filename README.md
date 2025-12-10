@@ -33,7 +33,7 @@ clipGre.ps1 -grep -searchText "pattern" -confirm
 
 # RegEx + case-insensitive replacement
 # Finds "foo...bar" regardless of case, and replaces the entire match with "baz".
-clipGre.ps1 -r -i -searchText "foo.*bar" -replaceText "baz"
+clipGre.ps1 -r -ci -searchText "foo.*bar" -replaceText "baz"
 
 ```
 
