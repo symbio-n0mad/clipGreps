@@ -11,6 +11,8 @@ param (
     [string[]]$searchText,   
     [Alias("text2", "replace", "displace", "substitute", "replaceBy")]          
     [string[]]$replaceText,
+    [Alias("onTheFly", "readInput", "ri", "interactiveMode", "im", "ia", "inputAsk")] 
+    [switch]$interactive,
     [Alias("wait", "delay", "seconds", "time", "t" , "z")] 
     [string]$timeout = "0",
     [Alias("showHelp", "h", "hint", "usage")]          
@@ -48,6 +50,17 @@ function check-Confirmation() {
     if ($persist){
         Write-Host "Press Enter to exit..."
         [void][System.Console]::ReadLine()
+    }
+}
+
+function Read-Input {
+    $search  = Read-Host "Please enter search text"
+    if(-not $extractMatch){
+        $replace = Read-Host "Please enter replacement text"
+    }
+    return [PSCustomObject]@{
+        Search  = $search
+        Replace = $replace
     }
 }
 
@@ -188,9 +201,9 @@ if (
     (
         ($searchFolderPath.Trim().Length -eq 0) -and    # No folder         or
         ($searchFilePath.Trim().Length -eq 0) -and      # No file           or
-        (-not $searchText -or $searchText.Count -eq 0)
+        (-not $searchText -or $searchText.Count -eq 0) -and
+        (-not $interactive) 
         #($searchText.Trim().Length -eq 0)               # No search text    provided
-
     )
 ) {
     show-Helptext
@@ -200,6 +213,14 @@ if (
     exit
 }
 
+$searchLines  = @()  # empty arrays
+$replaceLines = @()  # initialize arrays
+
+if ($interactive) {
+    $userRead = Read-Input
+    $searchLines += $userRead.Search
+    $replaceLines += $userRead.Replace
+}
 
 do { # (Endless) loop start
     
@@ -212,8 +233,6 @@ if ([string]::IsNullOrWhiteSpace($clipboardText)) {
     exit
 }
 
-$searchLines  = @()  # Initialize arrays
-$replaceLines = @()  # Initialize arrays
 # Read file contents explicitly as arrays, but only if they exist
 if (-not [string]::IsNullOrWhiteSpace($searchFilePath)) {
     $searchLines = @(Get-Content -Path $searchFilePath)
@@ -489,6 +508,8 @@ else {
     Write-Host 'Clipboard text has not changed.'
 }
 
+$searchLines  = @()  # empty arrays for case of endless loop
+$replaceLines = @()  # empty arrays
 
 wait-Timeout(([int]([math]::Round(([double]($loopDelay -replace ',','.') * 1000)))))  # convert to ms
 } until (-not $endless)
