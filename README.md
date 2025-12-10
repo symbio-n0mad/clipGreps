@@ -1,4 +1,4 @@
-# clipGreps: Clipboard Grep and Substitute
+# clipGreps: Clipboard Grep and Substitutions
 ## clipGre.ps1
 
 A lightweight PowerShell script for **filter** or **search & replace operations** directly on your **clipboard content**.
@@ -8,9 +8,10 @@ A lightweight PowerShell script for **filter** or **search & replace operations*
 ## Basic Features
 These are the core, productive features:
 
-- Supports **inline strings** (`-search foo`, `-replace bar`) or **text files** (see below) as search/replace input  
+- Supports **inline strings** (`-search foo`, `-replace bar`) or **text files** (see below) as search/replace ammo  
 - Includes a **grep-like search** mode (`-grep`) for quick text filtering 🔍  
-- Optional **RegEx** mode (`-r`) and **case-insensitive mode** (`-i`)  
+  - Displays: literal match, full line containing the match, the line number and overall match count
+- Optional **RegEx** mode (`-r`) and **case-insensitive mode** (`-ci`)  
 
 
 
@@ -31,7 +32,7 @@ clipGre.ps1 -grep -searchText "pattern" -confirm
 
 # RegEx + case-insensitive replacement
 # Finds "foo...bar" regardless of case, and replaces the entire match with "baz".
-clipGre.ps1 -r -i -searchText "foo\d.*bar" -replaceText "baz"
+clipGre.ps1 -r -i -searchText "foo.*bar" -replaceText "baz"
 
 ```
 
@@ -62,10 +63,12 @@ You can achieve this easily using a **desktop shortcut** that launches PowerShel
 
 
 ## Exotic / Advanced Features
-All other functional flags are categorized as extended capabilities:
+All additional functional flags are categorized as extended capabilities:
+
+- Interactive **prompt** for single **search/replace** strings (`-interactive`)
 
 - Explicit **search file** (`-searchFile <FILENAME>`)  
-  - Applied **line by line** (compatible with `-i` and `-r`)
+  - Applied **line by line** (compatible with `-ci` and `-r`)
   - Empty lines **deprecated**
 
 - Explicit **replace file** (`-replaceFile <FILENAME>`)  
@@ -75,8 +78,9 @@ All other functional flags are categorized as extended capabilities:
 - Explicit **search folder** (`-searchFolder <FOLDERNAME>`)  
   - Only *.txt files are used
   - Files are sorted alphabetical prior to usage
-  - Applied **file by file** (compatible with `-i` and `-r`)
+  - Applied **file by file** (compatible with `-ci` and `-r`)
   - Empty files **deprecated**
+  - _Incompatible_ with `-grep`
 
 - Explicit **replace folder** (`-replaceFolder <FOLDERNAME>`)  
   - Only *.txt files are used
@@ -87,7 +91,7 @@ All other functional flags are categorized as extended capabilities:
 - Can **output to file** instead of clipboard (`-write`)  
   - If no filename is given, a **timestamp** is used  
   - Optional explicit filename via `-saveAs <FILENAME>`
-    - timestamp gets added additionally
+    - Timestamp gets added anyway
 
 - **Time delay** before script ends (`-timeout <SECONDS>`, decimals allowed)  
   - Negative values introduce a **delay _before_ execution** (useful for fullscreen applications)
@@ -97,14 +101,14 @@ All other functional flags are categorized as extended capabilities:
 
 - Activate **standard settings** (`-standard`)  
   - Standard file paths: `.\SEARCH.txt` and `.\REPLACE.txt` (used if existent)
-  - Standard folder paths: `.\SEARCH\*.txt` and `.\REPLACE\*.txt` (used if existent, incompatible with `-grep` mode)
+  - Standard folder paths: `.\SEARCH\*.txt` and `.\REPLACE\*.txt` (used if existent, _incompatible_ with `-grep` mode)
   - Corresponding existence is validated and reported
 
-- Repeated application of search & replace in an **endless loop** `-endless`
-    - Optinal timeout for every loop `-loopDelay`
+- **Repeated** application of chosen action in an **endless loop** `-endless`
+    - Optional timeout for every loop `-loopDelay`
     - Useful for fullscreen applications
 
-- Display all available flags with `-h` or `-usage`
+- Display **all** available **flags** with `-h` or `-usage`
 
 ---
 
