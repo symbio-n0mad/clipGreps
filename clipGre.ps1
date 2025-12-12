@@ -132,9 +132,10 @@ function show-Helptext() {  # self descriptive: print help text
     Write-Host "or"
     Write-Host "  -s / -standardSettings    Loads the standard folder or file names SEARCH/REPLACE or SEARCH/REPLACE.txt"
     Write-Host "further options"
-    Write-Host "  -r / -RegEx               Permit use of Regular Expressions"
     Write-Host "  -x / -grep                Search and extract patterns"
-    Write-Host "  -i / -ignoreCase          Ignore case while searching"
+    Write-Host "  -r / -RegEx               Permit use of Regular Expressions"
+    Write-Host "  -ci / -ignoreCase         Ignore case while searching"
+    Write-Host "  -ia / -interactive        Queries for (single) search and replace strings interactively"
     Write-Host ""
     Write-Host "  -w / -fileOutput          Write to file, not clipboard"
     Write-Host "  -o / -saveAs              Provide output filename as string (optional)"
@@ -143,7 +144,6 @@ function show-Helptext() {  # self descriptive: print help text
     Write-Host "  -t / -timeout             Waiting time in seconds before ending the program"
     Write-Host "  -8 / -endless             Repeat the process endlessly"
     Write-Host "  -ld / -loopDelay          Delay between endless-loops in seconds (only with -endless)"
-    Write-Host "  -ia / -interactive        Queries user for search and replace strings interactively"
     Write-Host ""
 }
 
