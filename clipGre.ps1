@@ -1,15 +1,15 @@
 param (
-    [Alias("folder1", "searchFolder")]
+    [Alias("folder1", "searchFolder", "sdir", "sd")]
     [string]$searchFolderPath = "",   
-    [Alias("folder2", "replaceFolder")]          
+    [Alias("folder2", "replaceFolder", "rdir", "rd")]          
     [string]$replaceFolderPath = "",
-    [Alias("file1", "searchFile")]
+    [Alias("file1", "searchFile", "sfile", "sf")]
     [string]$searchFilePath = "",    
-    [Alias("file2", "replaceFile")]          
+    [Alias("file2", "replaceFile", "rfile", "rf")]          
     [string]$replaceFilePath = "",
-    [Alias("text1", "search", "find", "findText", "searchFor")]
+    [Alias("text1", "search", "find", "findText", "searchFor", "st", "ft")]
     [string[]]$searchText,   
-    [Alias("text2", "replace", "displace", "substitute", "replaceBy")]          
+    [Alias("text2", "replace", "displace", "substitute", "replaceBy", "rt", "subt")]          
     [string[]]$replaceText,
     [Alias("onTheFly", "readInput", "ri", "interactiveMode", "im", "ia", "inputAsk")] 
     [switch]$interactive,
@@ -122,13 +122,13 @@ function show-Helptext() {  # self descriptive: print help text
     Write-Host "Basic example: clipGre.ps1 -searchText 'old1' -replaceText 'newString'"
     Write-Host ""
     Write-Host "Usage:"
-    Write-Host "  -searchFolderPath         Path to folder with search files as string"
-    Write-Host "  -searchFilePath           Path to file with lines to search for as string"
-    Write-Host "  -searchText / -find       String (or comma separated string list) to search for"
+    Write-Host "  -sd / -searchFolderPath   Path to folder with search files as string"
+    Write-Host "  -sf / -searchFilePath     Path to file with lines to search for as string"
+    Write-Host "  -st / -searchText         String (or comma separated string list) to search for"
     Write-Host "and corresponding"
-    Write-Host "  -replaceFolderPath        Path to folder with replace files as string"
-    Write-Host "  -replaceFilePath          Path to file with replacement lines as string"
-    Write-Host "  -replaceText / -replace   Replacement string (or comma separated string list)"
+    Write-Host "  -rd / -replaceFolderPath  Path to folder with replace files as string"
+    Write-Host "  -rf / -replaceFilePath    Path to file with replacement lines as string"
+    Write-Host "  -rt / -replaceText        Replacement string (or comma separated string list)"
     Write-Host "or"
     Write-Host "  -s / -standardSettings    Loads the standard folder or file names SEARCH/REPLACE or SEARCH/REPLACE.txt"
     Write-Host "further options"
@@ -143,6 +143,7 @@ function show-Helptext() {  # self descriptive: print help text
     Write-Host "  -t / -timeout             Waiting time in seconds before ending the program"
     Write-Host "  -8 / -endless             Repeat the process endlessly"
     Write-Host "  -ld / -loopDelay          Delay between endless-loops in seconds (only with -endless)"
+    Write-Host "  -ia / -interactive        Queries user for search and replace strings interactively"
     Write-Host ""
 }
 
@@ -463,7 +464,7 @@ for ($i = 0; $i -lt $searchFiles.Count; $i++) {
     }
     if ($ci) { 
         if ($r) {
-                $searchContent = $searchContent
+                $searchContent = '(?x)' + $searchContent
         }
         else {
             $searchContent = '(?i)' + [regex]::Escape($searchContent)
@@ -471,7 +472,7 @@ for ($i = 0; $i -lt $searchFiles.Count; $i++) {
     }
     else{
         if ($r) {
-            $searchContent = $searchContent
+            $searchContent = '(?x)' + $searchContent
         }
         else {
             $searchContent = [regex]::Escape($searchContent)
@@ -517,3 +518,4 @@ wait-Timeout(([int]([math]::Round(([double]($loopDelay -replace ',','.') * 1000)
 
 check-Confirmation
 wait-Timeout
+# planned features: folder-wise grep, missing files in folder should: fullfil deletion
