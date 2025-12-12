@@ -63,29 +63,41 @@ You can achieve this easily using a **desktop shortcut** that launches PowerShel
 
 
 
-## Exotic / Advanced Features
+## All Features Explained (incl. Exotic / Advanced)
 All additional functional flags are categorized as extended capabilities:
+
+- **Inline strings** may be provided as array
+  - E. g. `-search "foo","bar","baz"`, `-replace "rea","lwo","rds"`)
+
+- **RegEx** mode (`-r`) available
+  - All input search patterns are interpreted as RegEx (.NET flavor)
+
+- **Case-insensitive mode** (`-ci`) for search patterns
+  - Despite being often standardized, here an explicit call is necessary
 
 - Interactive **prompt** for single **search/replace** strings (`-interactive`)
 
 - Explicit **search file** (`-searchFile <FILENAME>`)  
-  - Applied **line by line** (compatible with `-ci` and `-r`)
+  - Applied **line by line** in ordered fashion (compatible with `-ci` and `-r`)
   - Empty lines **deprecated**
 
 - Explicit **replace file** (`-replaceFile <FILENAME>`)  
-  - Applied **line by line**  
+  - Applied **line by line** in ordered fashion
   - **Empty lines = deletions**
 
 - Explicit **search folder** (`-searchFolder <FOLDERNAME>`)  
-  - Only *.txt files are used
+  - Only *.txt files are used, whole files at once
   - Files are sorted alphabetical prior to usage
-  - Applied **file by file** (compatible with `-ci` and `-r`)
+  - File count must match with replace folder file count
+  - Applied **file by file** (compatible with `-ci`)
+  - Use of `-r`: free formatable multine RegEx is activated by default
   - Empty files **deprecated**
   - _Incompatible_ with `-grep`
 
 - Explicit **replace folder** (`-replaceFolder <FOLDERNAME>`)  
-  - Only *.txt files are used
+  - Only *.txt files are used, whole files at once
   - Files are sorted alphabetical prior to usage
+  - File count has to match search folder file count
   - Applied **file by file**  
   - **Empty files = deletions**
 
@@ -93,21 +105,25 @@ All additional functional flags are categorized as extended capabilities:
   - If no filename is given, a **timestamp** is used  
   - Optional explicit filename via `-saveAs <FILENAME>`
     - Timestamp gets added anyway
+    
+- **Repeated** application of chosen action in an **endless loop** `-endless`
+    - Timeout for every loop `-loopDelay` (optional but _recommended_)
+    - Intended for fullscreen applications
+    - Forcefully termination of script obligatory
 
 - **Time delay** before script ends (`-timeout <SECONDS>`, decimals allowed)  
-  - Negative values introduce a **delay _before_ execution** (useful for fullscreen applications)
+  - Prolong your peeking time as desired
+  - Negative values introduce a **delay _before_ execution** 
+    - Intended for fullscreen applications
 
-- **Exit requires confirmation** (Terminal stays open until pressing enter `-confirm`)
-    - For arbitrary additional peeking time, terminal might be closed after results are evaluated 
+- **Exit requires confirmation** (`-confirm`)
+    - Terminal stays open until pressing enter 
+    - For arbitrary/variable peeking time, terminal might be closed after output is evaluated 
 
 - Activate **standard settings** (`-standard`)  
   - Standard file paths: `.\SEARCH.txt` and `.\REPLACE.txt` (used if existent)
   - Standard folder paths: `.\SEARCH\*.txt` and `.\REPLACE\*.txt` (used if existent, _incompatible_ with `-grep` mode)
   - Corresponding existence is validated and reported
-
-- **Repeated** application of chosen action in an **endless loop** `-endless`
-    - Optional timeout for every loop `-loopDelay`
-    - Useful for fullscreen applications
 
 - Display **all** available **flags** with `-h` or `-usage`
 
