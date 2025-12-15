@@ -259,6 +259,44 @@ if ($replaceText -or $replaceText.Count -gt 0) {
 #     $replaceLines += ,$replaceText
 # }
 
+#Search and replace folderwise
+if (-not [string]::IsNullOrWhiteSpace($searchFolderPath)) {
+    if (-not (check-folder -Path $searchFolderPath -Strict)) {
+        Write-Host "Folder check failed, path non-existent or files empty"
+    }
+    else {
+        #"Folder check successfull"
+    }
+    if (-not (check-folder -Path $replaceFolderPath)) {
+        Write-Host "Folder check failed, path non-existent"
+    }
+    else {
+        #"Folder check successfull"
+    }
+}
+#  Get list: whole text files from folders if applicable
+$searchFiles = Get-ChildItem -Path $searchFolderPath -Filter *.txt | Sort-Object Name
+$replaceFiles = Get-ChildItem -Path $replaceFolderPath -Filter *.txt | Sort-Object Name
+
+if ($searchFiles.Count -ne $replaceFiles.Count) {
+    Write-Host "The number of .txt-files in the SEARCH and REPLACE folders does not match."
+    Write-Host "Exiting..."
+    exit
+}
+for ($i = 0; $i -lt $searchFiles.Count; $i++) {
+    # Read file contents and append to search/replace arrays
+    $searchContent = Get-Content -Path $searchFiles[$i].FullName -Raw
+    $replaceContent = Get-Content -Path $replaceFiles[$i].FullName -Raw
+    if ($null -eq $replaceContent) {
+        $replaceContent = ''
+    }
+    if ($r) {
+            $searchContent = '(?x)' + $searchContent
+    }
+    $searchLines  += $searchContent  # Whole file as one entry
+    $replaceLines += $replaceContent  # Whole file as one entry
+}
+
 # Process the grepping functionality: extracting matches
 if ($extractMatch) { 
     $opt =  if ($ci) {
@@ -379,116 +417,153 @@ else {
 
 #searchAndReplace part by part
 if ($null -ne $replaceLines -and $replaceLines.Count -gt 0 -and $null -ne $searchLines -and $searchLines.Count -gt 0) {  # Only runs if search/replaceLines-Array is existing and has content
-    if ($r) {
-        for ($i = 0; $i -lt $searchLines.Count; $i++) {
-            $searchString = $searchLines[$i]
-            $replaceString = $replaceLines[$i]
-            if ($replaceString -eq '') {
-                # Delete $searchString from $clipboardText
-                if ($ci) {
-                    $clipboardText = $clipboardText -replace $searchString, ''
-                }
-                else {
-                    $clipboardText = $clipboardText -creplace $searchString, ''
-                }
-            } else {
-                if ($ci) {
-                    # Replace $searchString by $replaceString
-                    $clipboardText = $clipboardText -replace $searchString, $replaceString
-                }
-                else {
-                    $clipboardText = $clipboardText -creplace $searchString, $replaceString
-                }
+    for ($i = 0; $i -lt $searchLines.Count; $i++) {
+        $searchContent = $searchLines[$i]
+        $replaceContent = $replaceLines[$i]
+        #$searchLines  += $searchContent  # Whole file as one entry
+        #$replaceLines += $replaceContent  # Whole file as one entry
+        # rest'd be obsolete
+        if ($ci) { 
+            if ($r) {
+                    $searchContent = '(?x)' + $searchContent
             }
-}
-    }
-    else {
-        for ($i = 0; $i -lt $searchLines.Count; $i++) {
-            $searchString = $searchLines[$i]
-            $replaceString = $replaceLines[$i]
-            if ($replaceString -eq '') {
-                if ($ci) {
-                    $clipboardText = $clipboardText -replace [regex]::Escape($searchString), ''
-                    #$clipboardText = $clipboardText.Replace($searchString, '')
-                }
-                else {
-                    # #$clipboardText = $clipboardText.Replace($searchString, '', [System.StringComparison]::Ordinal) # Not working, meethod is not overloaded
-                    $clipboardText = $clipboardText.Replace($searchString, '')
-                }
-            } else {
-                if ($ci) {
-                    $clipboardText = $clipboardText -replace [regex]::Escape($searchString), $replaceString
-                    #$clipboardText = $clipboardText.Replace($searchString, $replaceString)
-                }
-                else {
-                #  #$clipboardText = $clipboardText.Replace($searchString, $replaceString, [System.StringComparison]::Ordinal) # Not working, meethod is not overloaded
-                $clipboardText = $clipboardText.Replace($searchString, $replaceString)
-                }
+            else {
+                $searchContent = '(?i)' + [regex]::Escape($searchContent)
             }
         }
+        else{
+            if ($r) {
+                $searchContent = '(?x)' + $searchContent
+            }
+            else {
+                $searchContent = [regex]::Escape($searchContent)
+            }
+        }
+        # Ersetze den Inhalt in der clipboardText (case-sensitive)
+        #$clipboardText = [regex]::Replace($clipboardText, [regex]::Escape($searchContent), $replaceContent)
+        try {
+            $clipboardText = [regex]::Replace($clipboardText, $searchContent, $replaceContent)
+        }
+        catch {
+            Write-Warning "Skipping invalid regex: $pattern - $_"
+            continue
+        }
+        
     }
 }
+#     if ($r) {
+#         for ($i = 0; $i -lt $searchLines.Count; $i++) {
+#             $searchString = $searchLines[$i]
+#             $replaceString = $replaceLines[$i]
+#             if ($replaceString -eq '') {
+#                 # Delete $searchString from $clipboardText
+#                 if ($ci) {
+#                     $clipboardText = $clipboardText -replace $searchString, ''
+#                 }
+#                 else {
+#                     $clipboardText = $clipboardText -creplace $searchString, ''
+#                 }
+#             } else {
+#                 if ($ci) {
+#                     # Replace $searchString by $replaceString
+#                     $clipboardText = $clipboardText -replace $searchString, $replaceString
+#                 }
+#                 else {
+#                     $clipboardText = $clipboardText -creplace $searchString, $replaceString
+#                 }
+#             }
+# }
+#     }
+#     else {
+#         for ($i = 0; $i -lt $searchLines.Count; $i++) {
+#             $searchString = $searchLines[$i]
+#             $replaceString = $replaceLines[$i]
+#             if ($replaceString -eq '') {
+#                 if ($ci) {
+#                     $clipboardText = $clipboardText -replace [regex]::Escape($searchString), ''
+#                     #$clipboardText = $clipboardText.Replace($searchString, '')
+#                 }
+#                 else {
+#                     # #$clipboardText = $clipboardText.Replace($searchString, '', [System.StringComparison]::Ordinal) # Not working, meethod is not overloaded
+#                     $clipboardText = $clipboardText.Replace($searchString, '')
+#                 }
+#             } else {
+#                 if ($ci) {
+#                     $clipboardText = $clipboardText -replace [regex]::Escape($searchString), $replaceString
+#                     #$clipboardText = $clipboardText.Replace($searchString, $replaceString)
+#                 }
+#                 else {
+#                 #  #$clipboardText = $clipboardText.Replace($searchString, $replaceString, [System.StringComparison]::Ordinal) # Not working, meethod is not overloaded
+#                 $clipboardText = $clipboardText.Replace($searchString, $replaceString)
+#                 }
+#             }
+#         }
+#     }
+# }
 
 #Search and replace folderwise
-if (-not [string]::IsNullOrWhiteSpace($searchFolderPath)) {
-    if (-not (check-folder -Path $searchFolderPath -Strict)) {
-        Write-Host "Folder check failed, path non-existent or files empty"
-    }
-    else {
-        #"Folder check successfull"
-    }
-    if (-not (check-folder -Path $replaceFolderPath)) {
-        Write-Host "Folder check failed, path non-existent"
-    }
-    else {
-        #"Folder check successfull"
-    }
-}
+# if (-not [string]::IsNullOrWhiteSpace($searchFolderPath)) {
+#     if (-not (check-folder -Path $searchFolderPath -Strict)) {
+#         Write-Host "Folder check failed, path non-existent or files empty"
+#     }
+#     else {
+#         #"Folder check successfull"
+#     }
+#     if (-not (check-folder -Path $replaceFolderPath)) {
+#         Write-Host "Folder check failed, path non-existent"
+#     }
+#     else {
+#         #"Folder check successfull"
+#     }
+# }
 
-$searchFiles = Get-ChildItem -Path $searchFolderPath -Filter *.txt | Sort-Object Name
-$replaceFiles = Get-ChildItem -Path $replaceFolderPath -Filter *.txt | Sort-Object Name
+# $searchFiles = Get-ChildItem -Path $searchFolderPath -Filter *.txt | Sort-Object Name
+# $replaceFiles = Get-ChildItem -Path $replaceFolderPath -Filter *.txt | Sort-Object Name
 
 
-# Check if the number of files in both folders matches
-if ($searchFiles.Count -ne $replaceFiles.Count) {
-    Write-Host "The number of .txt-files in the SEARCH and REPLACE folders does not match."
-    Write-Host "Exiting..."
-    exit
-}
-for ($i = 0; $i -lt $searchFiles.Count; $i++) {
-    # Read file contents
-    $searchContent = Get-Content -Path $searchFiles[$i].FullName -Raw
-    $replaceContent = Get-Content -Path $replaceFiles[$i].FullName -Raw
-    if ($null -eq $replaceContent) {
-        $replaceContent = ''
-    }
-    if ($ci) { 
-        if ($r) {
-                $searchContent = '(?x)' + $searchContent
-        }
-        else {
-            $searchContent = '(?i)' + [regex]::Escape($searchContent)
-        }
-    }
-    else{
-        if ($r) {
-            $searchContent = '(?x)' + $searchContent
-        }
-        else {
-            $searchContent = [regex]::Escape($searchContent)
-        }
-    }
-    # Ersetze den Inhalt in der clipboardText (case-sensitive)
-    #$clipboardText = [regex]::Replace($clipboardText, [regex]::Escape($searchContent), $replaceContent)
-    try {
-        $clipboardText = [regex]::Replace($clipboardText, $searchContent, $replaceContent)
-    }
-    catch {
-        Write-Warning "Skipping invalid regex: $pattern - $_"
-        continue
-    }
+# # Check if the number of files in both folders matches
+# if ($searchFiles.Count -ne $replaceFiles.Count) {
+#     Write-Host "The number of .txt-files in the SEARCH and REPLACE folders does not match."
+#     Write-Host "Exiting..."
+#     exit
+# }
+# for ($i = 0; $i -lt $searchFiles.Count; $i++) {
+#     # Read file contents
+#     $searchContent = Get-Content -Path $searchFiles[$i].FullName -Raw
+#     $replaceContent = Get-Content -Path $replaceFiles[$i].FullName -Raw
+#     if ($null -eq $replaceContent) {
+#         $replaceContent = ''
+#     }
+#     #$searchLines  += $searchContent  # Whole file as one entry
+#     #$replaceLines += $replaceContent  # Whole file as one entry
+#     # rest'd be obsolete
+#     if ($ci) { 
+#         if ($r) {
+#                 $searchContent = '(?x)' + $searchContent
+#         }
+#         else {
+#             $searchContent = '(?i)' + [regex]::Escape($searchContent)
+#         }
+#     }
+#     else{
+#         if ($r) {
+#             $searchContent = '(?x)' + $searchContent
+#         }
+#         else {
+#             $searchContent = [regex]::Escape($searchContent)
+#         }
+#     }
+#     # Ersetze den Inhalt in der clipboardText (case-sensitive)
+#     #$clipboardText = [regex]::Replace($clipboardText, [regex]::Escape($searchContent), $replaceContent)
+#     try {
+#         $clipboardText = [regex]::Replace($clipboardText, $searchContent, $replaceContent)
+#     }
+#     catch {
+#         Write-Warning "Skipping invalid regex: $pattern - $_"
+#         continue
+#     }
     
-}
+# }
 
 
 if ( [String]::CompareOrdinal($clipboardUnchanged, $clipboardText) -ne 0 ){ #byte by byte comparision seems to help here - it works!
