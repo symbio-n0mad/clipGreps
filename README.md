@@ -25,7 +25,7 @@ Below are simple examples demonstrating the essential functionality of the scrip
 # Replaces every occurrence of "foo" with "bar" in the clipboard content.
 clipGre.ps1 -search "foo" -replace "bar"
 # Accepts arrays as search/replace strings, e.g. redacting names
-clipGre.ps1 -search "Albert Einstein","Erwin Schrödinger","Whitney Houston" -replace "[Redacted Name]","[Redacted Name]","[Redacted Name]"
+clipGre.ps1 -search "Jens@Hofmann.biz","Albert Schrödinger","123.999" -replace "[Redacted E-Mail]","[Redacted Name]","[Redacted Number]"
 
 # Grep-like filtering (no replacement)
 # Keeps only lines that match "pattern" from the clipboard, holds terminal open until confirmation
@@ -67,7 +67,7 @@ You can achieve this easily using a **desktop shortcut** that launches PowerShel
 All additional functional flags are categorized as extended capabilities:
 
 - **Inline strings** may be provided as array
-  - E. g. `-search "foo","bar","baz"`, `-replace "rea","lwo","rds"`)
+  - E. g. `-search "foo","bar","baz"` `-replace "rea","lwo","rds"`
 
 - **RegEx** mode (`-r`) available
   - All input search patterns are interpreted as RegEx (.NET flavor)
@@ -92,7 +92,6 @@ All additional functional flags are categorized as extended capabilities:
   - Applied **file by file** (compatible with `-ci`)
   - Use of `-r`: free formatable multine RegEx is activated by default
   - Empty files **deprecated**
-  - _Incompatible_ with `-grep`
 
 - Explicit **replace folder** (`-replaceFolder <FOLDERNAME>`)  
   - Only *.txt files are used, whole files at once
@@ -103,11 +102,11 @@ All additional functional flags are categorized as extended capabilities:
 
 - Can **output to file** instead of clipboard (`-write`)  
   - If no filename is given, a **timestamp** is used  
-  - Optional explicit filename via `-saveAs <FILENAME>`
+  - Optional explicit filename (`-saveAs <FILENAME>`)
     - Timestamp gets added anyway
     
-- **Repeated** application of chosen action in an **endless loop** `-endless`
-    - Timeout for every loop `-loopDelay` (optional but _recommended_)
+- **Repeated** application of chosen action in an **endless loop** (`-endless`)
+    - Timeout for every loop (`-loopDelay <SECONDS>`, optional but _recommended_)
     - Intended for fullscreen applications
     - Forcefully termination of script obligatory
 
@@ -122,10 +121,12 @@ All additional functional flags are categorized as extended capabilities:
 
 - Activate **standard settings** (`-standard`)  
   - Standard file paths: `.\SEARCH.txt` and `.\REPLACE.txt` (used if existent)
-  - Standard folder paths: `.\SEARCH\*.txt` and `.\REPLACE\*.txt` (used if existent, _incompatible_ with `-grep` mode)
-  - Corresponding existence is validated and reported
+  - Standard folder paths: `.\SEARCH\*.txt` and `.\REPLACE\*.txt` (used if existent)
+    - Corresponding existence is validated and reported
+  - Case insensitivity (`-ci`, usual for .NET environment)
+  - Short timeout (`-timeout "1.5"`)
 
-- Display **all** available **flags** with `-h` or `-usage`
+- Display **all** available **flags** (`-h` / `-usage`)
 
 ---
 
