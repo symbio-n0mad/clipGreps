@@ -37,7 +37,43 @@ param (
     [string]$loopDelay
 )
 
+Write-Host "pre-all: searchLines:"
+Write-Host $searchLines
+Write-Host "replaceLines:"
+Write-Host $replaceLines
+Write-Host "end"
 
+function Show-CharDebug {
+    param(
+        [Parameter(Mandatory)]
+        [Object]$InputData
+    )
+
+    # Falls Input ein Array ist, alle Elemente in einen String zusammenführen
+    if ($InputData -is [System.Array]) {
+        $InputData = -join $InputData
+    }
+
+    for ($i = 0; $i -lt $InputData.Length; $i++) {
+        $char = $InputData[$i]
+
+        switch ($char) {
+            "`r" { Write-Host "`r (CR)" -ForegroundColor Cyan  -NoNewline}
+            "`n" { Write-Host "`n (LF)" -ForegroundColor Cyan  -NoNewline}
+            "`t" { Write-Host "`t (TAB)" -ForegroundColor Yellow  -NoNewline}
+            default { Write-Host $char -NoNewline }
+        }
+    }
+}
+#Write-Host "Pipeline input present:" ($input.Count)
+# Write-Host "pre-all: begin show-CharDebug"
+# Show-CharDebug $searchText
+# Write-Host ""
+# Show-CharDebug $replaceText
+# Write-Host ""
+# Write-Host "end show-CharDebug"
+# Write-Host "DEBUG searchFilePath = '[$searchFilePath]'"
+# Write-Host "IsNullOrWhiteSpace = $([string]::IsNullOrWhiteSpace($searchFilePath))"
 function wait-Timeout([int]$additionalTime = 0) {
     # accepts additional timeout, for internals requiring waiting time (e.g. help text)
     $newDelay = [math]::Abs([int]([math]::Round(([double]($timeout -replace ',','.') * 1000)))) + $additionalTime #convert , to . then from string to double multiply 1k then round and convert to int and then take abs
@@ -195,6 +231,7 @@ if ($timeout.Contains("-")) {  # Negative values will yield waiting time at prog
 
 # Apply standard settings if user wishes to do so
 if ($standardSettings) {
+    Write-Output "Applying standard settings..."
     set-Standard
 }
 
@@ -237,10 +274,13 @@ if ([string]::IsNullOrWhiteSpace($clipboardText)) {
 }
 
 # Read file contents explicitly as arrays, but only if they exist
+# if (-not [string]::IsNullOrWhiteSpace($searchFilePath)) {
 if (-not [string]::IsNullOrWhiteSpace($searchFilePath)) {
-    $searchLines = @(Get-Content -Path $searchFilePath)
+    $searchLines += @(Get-Content -Path $searchFilePath)
 }
-if ($searchText -or $searchText.Count -gt 0) {
+# if ($searchText -or $searchText.Count -gt 0) {
+if ($searchText | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) {
+# if ($null -ne $searchText -and $searchText.Count -gt 0) {
     $searchLines += $searchText  # So that $searchLines will be an array
 }
 # if (-not [string]::IsNullOrWhiteSpace($searchText)) { #saved for later
@@ -252,15 +292,20 @@ if ($searchText -or $searchText.Count -gt 0) {
 #     $searchLines += ,$extractMatch  # So that $searchLines will be an array
 # }
 if (-not [string]::IsNullOrWhiteSpace($replaceFilePath)) {
-    $replaceLines = @(Get-Content -Path $replaceFilePath)  # Urgent need of arrays: @( )
+    $replaceLines += @(Get-Content -Path $replaceFilePath)  # Urgent need of arrays: @( )
 }
-if ($replaceText -or $replaceText.Count -gt 0) {
+# if ($replaceText -or $replaceText.Count -gt 0) {
+if ($replaceText | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) {
     $replaceLines += $replaceText
 }
 # if (-not [string]::IsNullOrWhiteSpace($replaceText)) { #saved for later
 #     $replaceLines += ,$replaceText
 # }
-
+# Write-Host "after-read-file: replaceLines:"
+# Write-Host $replaceLines
+# Write-Host "searchLines:"
+# Write-Host $searchLines
+# Write-Host "end"
 #Search and replace folderwise
 if (-not [string]::IsNullOrWhiteSpace($searchFolderPath)) {
     if (-not (check-folder -Path $searchFolderPath -Strict)) {
@@ -276,9 +321,18 @@ if (-not [string]::IsNullOrWhiteSpace($searchFolderPath)) {
         #"Folder check successfull"
     }
 }
+# Write-Host "before readfolder searchLines:"
+# Show-CharDebug $searchLines
+# Write-Host "replaceLines:"
+# Show-CharDebug $replaceLines
+# Write-Host "end"
 #  Get list: whole text files from folders if applicable
-$searchFiles = Get-ChildItem -Path $searchFolderPath -Filter *.txt | Sort-Object Name
-$replaceFiles = Get-ChildItem -Path $replaceFolderPath -Filter *.txt | Sort-Object Name
+if (-not [string]::IsNullOrWhiteSpace($searchFolderPath)) {
+    $searchFiles = Get-ChildItem -Path $searchFolderPath -Filter *.txt | Sort-Object Name
+    if (-not [string]::IsNullOrWhiteSpace($replaceFolderPath)) {
+        $replaceFiles = Get-ChildItem -Path $replaceFolderPath -Filter *.txt | Sort-Object Name
+    }
+}
 
 if ($searchFiles.Count -ne $replaceFiles.Count) {
     Write-Host "The number of .txt-files in the SEARCH and REPLACE folders does not match."
@@ -416,7 +470,13 @@ else {
     #$searchLines = @($searchText)
 }
 
-
+# Write-Host "after x-func searchLines:"
+# Show-CharDebug $searchLines
+# Write-Host "replaceLines:"
+# Show-CharDebug $replaceLines
+# Write-Host "end"
+# Write-Host "DEBUG searchFilePath = '[$searchFilePath]'"
+# Write-Host "IsNullOrWhiteSpace = $([string]::IsNullOrWhiteSpace($searchFilePath))"
 #searchAndReplace part by part
 if ($null -ne $replaceLines -and $replaceLines.Count -gt 0 -and $null -ne $searchLines -and $searchLines.Count -gt 0) {  # Only runs if search/replaceLines-Array is existing and has content
     for ($i = 0; $i -lt $searchLines.Count; $i++) {
@@ -427,7 +487,7 @@ if ($null -ne $replaceLines -and $replaceLines.Count -gt 0 -and $null -ne $searc
         # rest'd be obsolete
         if ($ci) { 
             if ($r) {
-                    $searchContent = '(?x)' + '(?i)' + $searchContent
+                    $searchContent = '(?i)' + $searchContent
             }
             else {
                 $searchContent = '(?i)' + [regex]::Escape($searchContent)
@@ -435,7 +495,7 @@ if ($null -ne $replaceLines -and $replaceLines.Count -gt 0 -and $null -ne $searc
         }
         else{
             if ($r) {
-                $searchContent = '(?x)' + $searchContent
+                $searchContent =  $searchContent
             }
             else {
                 $searchContent = [regex]::Escape($searchContent)
