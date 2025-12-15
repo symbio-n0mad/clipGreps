@@ -37,11 +37,11 @@ param (
     [string]$loopDelay
 )
 
-Write-Host "pre-all: searchLines:"
-Write-Host $searchLines
-Write-Host "replaceLines:"
-Write-Host $replaceLines
-Write-Host "end"
+# Write-Host "pre-all: searchLines:"
+# Write-Host $searchLines
+# Write-Host "replaceLines:"
+# Write-Host $replaceLines
+# Write-Host "end"
 
 function Show-CharDebug {
     param(
@@ -148,8 +148,7 @@ function set-Standard() {  # Set standard preferences (file/folder names) if app
         Write-Host "Folder for replacement patterns is $replaceFolderPath"
     }
     if (!($filesExist) -and -Not($foldersExist)) {
-        Write-Error "Neither the required files nor the required folders exist. Please check the paths."
-        exit
+        Write-Host "No standard files or folders found, proceeding without them."
     }
 }
 
@@ -239,22 +238,20 @@ if ($standardSettings) {
 if (
     $Help.IsPresent -or  # Help flag provided or
     (
-        ($searchFolderPath.Trim().Length -eq 0) -and    # No folder         or
-        ($searchFilePath.Trim().Length -eq 0) -and      # No file           or
-        (-not $searchText -or $searchText.Count -eq 0) -and
-        (-not $interactive) 
-        #($searchText.Trim().Length -eq 0)               # No search text    provided
+        ($searchFolderPath.Trim().Length -eq 0) -and    # No folder         and
+        ($searchFilePath.Trim().Length -eq 0) -and      # No file           and
+        (-not $searchText -or $searchText.Count -eq 0) -and  # No CLI args
+        (-not $interactive)  # No interactive mode 
     )
 ) {
     show-Helptext
     check-Confirmation
     wait-Timeout(750)
-    # Read-Host -Prompt "Press Enter to end program!"
     exit
 }
 
-$searchLines  = @()  # empty arrays
-$replaceLines = @()  # initialize arrays
+$searchLines  = @()  # initialize arrays
+$replaceLines = @()  # empty arrays
 
 if ($interactive) {
     $userRead = Read-Input
@@ -272,35 +269,27 @@ if ([string]::IsNullOrWhiteSpace($clipboardText)) {
     Write-Output "No clipboard available. Nothing to do!"
     exit
 }
-
-# Read file contents explicitly as arrays, but only if they exist
-# if (-not [string]::IsNullOrWhiteSpace($searchFilePath)) {
-if (-not [string]::IsNullOrWhiteSpace($searchFilePath)) {
-    $searchLines += @(Get-Content -Path $searchFilePath)
-}
 # if ($searchText -or $searchText.Count -gt 0) {
 if ($searchText | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) {
 # if ($null -ne $searchText -and $searchText.Count -gt 0) {
-    $searchLines += $searchText  # So that $searchLines will be an array
+    $searchLines += $searchText  # add cli args first
 }
-# if (-not [string]::IsNullOrWhiteSpace($searchText)) { #saved for later
-#     $searchLines += ,$searchText  # So that $searchLines will be an array
-# }
+# Read file contents explicitly as arrays, but only if they exist
+if (-not [string]::IsNullOrWhiteSpace($searchFilePath)) {
+    $searchLines += @(Get-Content -Path $searchFilePath)  # Then read from file, arrays: @( )
+}
 
 
-# if (-not [string]::IsNullOrWhiteSpace($extractMatch)) {
-#     $searchLines += ,$extractMatch  # So that $searchLines will be an array
-# }
-if (-not [string]::IsNullOrWhiteSpace($replaceFilePath)) {
-    $replaceLines += @(Get-Content -Path $replaceFilePath)  # Urgent need of arrays: @( )
-}
+
 # if ($replaceText -or $replaceText.Count -gt 0) {
 if ($replaceText | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) {
     $replaceLines += $replaceText
 }
-# if (-not [string]::IsNullOrWhiteSpace($replaceText)) { #saved for later
-#     $replaceLines += ,$replaceText
-# }
+if (-not [string]::IsNullOrWhiteSpace($replaceFilePath)) {
+    $replaceLines += @(Get-Content -Path $replaceFilePath)  # Urgent need of arrays: @( )
+}
+
+
 # Write-Host "after-read-file: replaceLines:"
 # Write-Host $replaceLines
 # Write-Host "searchLines:"
@@ -309,13 +298,13 @@ if ($replaceText | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) {
 #Search and replace folderwise
 if (-not [string]::IsNullOrWhiteSpace($searchFolderPath)) {
     if (-not (check-folder -Path $searchFolderPath -Strict)) {
-        Write-Host "Folder check failed, path non-existent or files empty"
+        Write-Host "Search folder check failed, path non-existent or files empty"
     }
     else {
         #"Folder check successfull"
     }
     if (-not (check-folder -Path $replaceFolderPath)) {
-        Write-Host "Folder check failed, path non-existent"
+        Write-Host "Folder check failed, replace path non-existent"
     }
     else {
         #"Folder check successfull"
@@ -482,8 +471,6 @@ if ($null -ne $replaceLines -and $replaceLines.Count -gt 0 -and $null -ne $searc
     for ($i = 0; $i -lt $searchLines.Count; $i++) {
         $searchContent = $searchLines[$i]
         $replaceContent = $replaceLines[$i]
-        #$searchLines  += $searchContent  # Whole file as one entry
-        #$replaceLines += $replaceContent  # Whole file as one entry
         # rest'd be obsolete
         if ($ci) { 
             if ($r) {
@@ -501,8 +488,6 @@ if ($null -ne $replaceLines -and $replaceLines.Count -gt 0 -and $null -ne $searc
                 $searchContent = [regex]::Escape($searchContent)
             }
         }
-        # Ersetze den Inhalt in der clipboardText (case-sensitive)
-        #$clipboardText = [regex]::Replace($clipboardText, [regex]::Escape($searchContent), $replaceContent)
         try {
             $clipboardText = [regex]::Replace($clipboardText, $searchContent, $replaceContent)
         }
