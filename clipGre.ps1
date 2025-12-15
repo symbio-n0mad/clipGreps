@@ -91,6 +91,8 @@ function set-Standard() {  # Set standard preferences (file/folder names) if app
     $replaceFile = ".\REPLACE.txt"
     $searchFolder = ".\SEARCH\"
     $replaceFolder = ".\REPLACE\"
+    $script:ci = $true  # Standard settings include case-insensitivity
+    $script:timeout = "1.5"  # Standard settings include a short timeout
 
     # Check existence
     $filesExist = (Test-Path $searchFile -PathType Leaf) -and (Test-Path $replaceFile -PathType Leaf)
@@ -425,7 +427,7 @@ if ($null -ne $replaceLines -and $replaceLines.Count -gt 0 -and $null -ne $searc
         # rest'd be obsolete
         if ($ci) { 
             if ($r) {
-                    $searchContent = '(?x)' + $searchContent
+                    $searchContent = '(?x)' + '(?i)' + $searchContent
             }
             else {
                 $searchContent = '(?i)' + [regex]::Escape($searchContent)
