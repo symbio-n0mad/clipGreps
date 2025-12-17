@@ -640,4 +640,4 @@ wait-Timeout(([int]([math]::Round(([double]($loopDelay -replace ',','.') * 1000)
 
 check-Confirmation
 wait-Timeout
-# planned features: folder-wise grep, missing files in folder should: fullfil deletion
+# planned features: missing files in folder should: fullfil deletion
