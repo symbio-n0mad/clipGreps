@@ -488,6 +488,37 @@ if ($null -ne $replaceLines -and $replaceLines.Count -gt 0 -and $null -ne $searc
         
     }
 }
+#$options = [System.Text.RegularExpressions.RegexOptions]::None
+#
+#if ($flagVerbose) {
+#    $options = $options -bor `
+#        [System.Text.RegularExpressions.RegexOptions]::IgnorePatternWhitespace
+#}
+#
+#if ($flagMultiline) {
+#    $options = $options -bor `
+#        [System.Text.RegularExpressions.RegexOptions]::Multiline
+#}
+#
+#if ($flagSingleline) {
+#    $options = $options -bor `
+#        [System.Text.RegularExpressions.RegexOptions]::Singleline
+#}
+#
+#if ($flagIgnoreCase) {
+#    $options = $options -bor `
+#        [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+#}
+#
+#try {
+#    $regex = [regex]::new($searchContent, $options)
+#    $clipboardText = $regex.Replace($clipboardText, $replaceContent)
+#}
+#catch {
+#    Write-Warning "Skipping invalid regex: $searchContent - $_"
+#    continue
+#}
+
 #     if ($r) {
 #         for ($i = 0; $i -lt $searchLines.Count; $i++) {
 #             $searchString = $searchLines[$i]
