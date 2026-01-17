@@ -23,8 +23,6 @@ param (
     [switch]$fileOutput = $false,
     [Alias("outputName", "saveFileName", "outName", "saveAs", "o", "out", "output")]
     [string]$fileName = "",  
-    [Alias("standard", "s", "normal", "n", "default", "d")]          
-    [switch]$standardSettings,  
     [Alias("regularExpressions", "regEx", "advanced", "regExP")]          
     [switch]$r,  
     [Alias("termOpen", "stay", "windowPersist", "confirm", "p", "c")]          
@@ -228,13 +226,7 @@ if ($timeout.Contains("-")) {  # Negative values will yield waiting time at prog
     $timeout = "0"
 }
 
-# Apply standard settings if user wishes to do so
-if ($standardSettings) {
-    Write-Output "Applying standard settings..."
-    set-Standard
-}
-
-# Show help text if desired, then exit
+# Show help text if necessary, then exit
 if (
     $Help.IsPresent -or  # Help flag provided or
     (
