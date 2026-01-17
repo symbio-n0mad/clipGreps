@@ -119,13 +119,6 @@ All additional functional flags are categorized as extended capabilities:
     - Terminal stays open until pressing enter 
     - For arbitrary/variable peeking time, terminal might be closed after output is evaluated 
 
-- Activate **standard settings** (`-standard`)  
-  - Standard file paths: `.\SEARCH.txt` and `.\REPLACE.txt` (used if existent)
-  - Standard folder paths: `.\SEARCH\*.txt` and `.\REPLACE\*.txt` (used if existent)
-    - Corresponding existence is validated and reported
-  - Case insensitivity (`-ci`, usual for .NET environment)
-  - Short timeout (`-timeout "1.5"`)
-
 - Display **all** available **flags** (`-h` / `-usage`)
 
 ---
