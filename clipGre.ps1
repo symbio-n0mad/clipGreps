@@ -223,6 +223,137 @@ function check-Folder {  # Function to check for existence of folder and for fil
     }
     return $true
 }
+function Get-RegexMatchesWithContextAB {
+    param (
+        [Parameter(Mandatory)]
+        [string]$Text,
+
+        [Parameter(Mandatory)]
+        [string]$Pattern,
+
+        [System.Text.RegularExpressions.RegexOptions]
+        $RegexOptions = [System.Text.RegularExpressions.RegexOptions]::None,
+
+        [int]$A = 2,  # Kontext VOR dem Match
+        [int]$B = 2   # Kontext NACH dem Match
+    )
+
+    $lines = $Text -split "`n", -1
+    $regex = [System.Text.RegularExpressions.Regex]::new($Pattern, $RegexOptions)
+
+    foreach ($match in $regex.Matches($Text)) {
+
+        # --- Startposition berechnen ---
+        $beforeText = $Text.Substring(0, $match.Index)
+        $startLine  = ($beforeText -split "`n", -1).Count
+        $startCol   = $match.Index - ($beforeText.LastIndexOf("`n") + 1) + 1
+
+        # --- Match-Zeilen ---
+        $matchLines = $match.Value -split "`n", -1
+        $matchLineCount = $matchLines.Count
+
+        # --- Kontextgrenzen ---
+        $beforeStart = [Math]::Max(1, $startLine - $A)
+        $afterEnd    = [Math]::Min(
+            $lines.Count,
+            $startLine + $matchLineCount - 1 + $B
+        )
+
+        [PSCustomObject]@{
+            Index      = $match.Index
+            StartLine   = $startLine
+            StartColumn= $startCol
+            MatchValue = $match.Value
+
+            Before = for ($i = $beforeStart; $i -lt $startLine; $i++) {
+                [PSCustomObject]@{
+                    LineNumber = $i
+                    Text       = $lines[$i - 1]
+                }
+            }
+
+            Match = for ($i = 0; $i -lt $matchLineCount; $i++) {
+                [PSCustomObject]@{
+                    LineNumber = $startLine + $i
+                    Text       = $matchLines[$i]
+                }
+            }
+
+            After = for ($i = $startLine + $matchLineCount; $i -le $afterEnd; $i++) {
+                [PSCustomObject]@{
+                    LineNumber = $i
+                    Text       = $lines[$i - 1]
+                }
+            }
+        }
+    }
+}
+function Write-MatchWithContextAB {
+    param (
+        [Parameter(Mandatory)]
+        $MatchObject,
+
+        [string[]]$AllLines
+    )
+
+    # --- Kontext VORHER ---
+    foreach ($line in $MatchObject.Before) {
+        Write-Host ("{0,5}:" -f $line.LineNumber) -ForegroundColor Yellow -NoNewline
+        Write-Host " $($line.Text)"
+    }
+
+    # --- MATCH ---
+    $matchText   = $MatchObject.MatchValue
+    $remaining   = $matchText.Length
+    $offsetInMatch = 0
+
+    foreach ($line in $MatchObject.Match) {
+
+        $lineNo   = $line.LineNumber
+        $fullLine = $AllLines[$lineNo - 1]
+
+        # Match-Start in dieser Zeile
+        if ($lineNo -eq $MatchObject.StartLine) {
+            $startCol = $MatchObject.StartColumn
+        } else {
+            $startCol = 1
+        }
+
+        # Maximale Match-Länge in dieser Zeile
+        $maxLen = $fullLine.Length - $startCol + 1
+        $lenInThisLine = [Math]::Min($remaining, $maxLen)
+
+        # Teile der Zeile
+        $prefix = if ($startCol -gt 1) {
+            $fullLine.Substring(0, $startCol - 1)
+        } else { '' }
+
+        $matchPart = $fullLine.Substring($startCol - 1, $lenInThisLine)
+
+        $suffixStart = $startCol - 1 + $lenInThisLine
+        $suffix = if ($suffixStart -lt $fullLine.Length) {
+            $fullLine.Substring($suffixStart)
+        } else { '' }
+
+        # Ausgabe (REIHENFOLGE WICHTIG!)
+        Write-Host ("{0,5}:" -f $lineNo) -ForegroundColor Yellow -NoNewline
+        Write-Host " $prefix" -NoNewline
+        Write-Host $matchPart -ForegroundColor Red -NoNewline
+        Write-Host $suffix
+
+        $remaining -= $lenInThisLine
+        if ($remaining -le 0) { break }
+    }
+
+    # --- Kontext NACHHER ---
+    foreach ($line in $MatchObject.After) {
+        Write-Host ("{0,5}:" -f $line.LineNumber) -ForegroundColor Yellow -NoNewline
+        Write-Host " $($line.Text)"
+    }
+
+    Write-Host ''
+}
+
 
 # $C is $A and $B combined, to reduce variable amount we sum them up here
 $A += $C
@@ -248,13 +379,18 @@ if (
     exit
 }
 
+$grepOutput = ""
 $searchFiles = @()  # initialize arrays
 $replaceFiles = @()  # empty arrays
 
 $searchLines  = @()  # initialize arrays
 $replaceLines = @()  # empty arrays
 
-$regexOptions = [System.Text.RegularExpressions.RegexOptions]::None
+if($ci) {
+    $regexOptions = [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+} else {
+    $regexOptions = [System.Text.RegularExpressions.RegexOptions]::None
+}
 
 foreach ($char in $flags.ToCharArray()) {
     switch ($char) {
@@ -278,6 +414,7 @@ foreach ($char in $flags.ToCharArray()) {
 }
 
 do { # (Endless) loop start
+
 
 if ($timeout.Contains("-")) {  # Negative values will yield waiting time at program start
     wait-Timeout
@@ -326,7 +463,7 @@ $searchFilePath = $searchFilePath | Where-Object { -not [string]::IsNullOrWhiteS
 $replaceFilePath = $replaceFilePath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } # For case of wrong user input,
 
 $searchFilePath += $searchFiles.FullName  # Append found files from folders to file path arrays
-$replaceFilePath += $replaceFiles.FullName  # Append found files from folders to file
+$replaceFilePath += $replaceFiles.FullName  # Append found files from folders to file FullName=full path
 
 if ($wholeFile) {  # Read as whole files or linewise
     foreach ($file in $searchFilePath) {
@@ -360,59 +497,97 @@ if ($wholeFile) {  # Read as whole files or linewise
 # Read file contents (lines) explicitly as arrays, but only if they exist
 }
 
+# foreach ($m in $orderedMatches) {
+
+#     # Kontext vorher
+#     foreach ($l in $m.Before) {
+#         Write-Host ("{0,5}:" -f $l.LineNumber) -ForegroundColor Yellow -NoNewline
+#         Write-Host " $($l.Text)"
+#     }
+
+#     # Match (nur EINZEILIG, bewusst!)
+#     $lineNo = $m.StartLine
+#     $line   = $lines[$lineNo - 1]
+
+#     $prefix = $line.Substring(0, $m.StartColumn - 1)
+#     $match  = $m.MatchValue
+#     $suffix = $line.Substring($m.StartColumn - 1 + $match.Length)
+
+#     Write-Host ("{0,5}:" -f $lineNo) -ForegroundColor Yellow -NoNewline
+#     Write-Host " $prefix" -NoNewline
+#     Write-Host $match -ForegroundColor Red -NoNewline
+#     Write-Host $suffix
+
+#     # Kontext nachher
+#     foreach ($l in $m.After) {
+#         Write-Host ("{0,5}:" -f $l.LineNumber) -ForegroundColor Yellow -NoNewline
+#         Write-Host " $($l.Text)"
+#     }
+
+#     Write-Host ""
+# }
+
 
 # Process the grepping functionality: extracting matches
-if ($extractMatch) { 
-    $opt =  if ($ci) {
-                [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
-            } else {
-                [System.Text.RegularExpressions.RegexOptions]::None
-            }
-    # Match extraction: extract matches
-    #### Printing line nr of match, match itself, CRLF, full line, CRLF ###
-    # Define search string as empty variable
-    $textOut = New-Object System.Text.StringBuilder
+if ($extractMatch -and ($searchLines -and ($searchLines | Where-Object { -not [string]::IsNullOrWhiteSpace($_.ToString()) }))) { 
+    $lines = $clipboardText -split "`n", -1
+    $allMatches = foreach ($pattern in $searchLines) {
+        Get-RegexMatchesWithContextAB `
+            -Text $clipboardText `
+            -Pattern $pattern `
+            -RegexOptions (
+                $regexOptions
+            ) `
+            -A $B `
+            -B $A
+    }
+    $orderedMatches = $allMatches | Sort-Object Index
     $matchCount = 0
-    $pattern = ""
-    # Text splitting to lines
-    $lines = $clipboardText -split "`r?`n"
-    for ($j = 0; $j -lt $searchLines.Count; $j++) {
-        $pattern = $searchLines[$j]
-        $escpattern = [regex]::Escape($pattern)
-        # Iterate lines
-        #$escpattern = [regex]::Escape($pattern)
-        # Iterate lines
-        for ($i = 0; $i -lt $lines.Length; $i++) {
-            $lineNumber = $i + 1
-            $line = $lines[$i]
-            if ($r) {
-                # Regex-search (case-sensitive)
-                foreach ($m in [regex]::Matches($line, $pattern, $opt)) {
-                    Write-Host "${lineNumber}: " -NoNewline -ForegroundColor Yellow
-                    Write-Host "$($m.Value)"  -ForegroundColor Red  # Match 
-                    Write-Host "${lineNumber}:" -NoNewline -ForegroundColor Yellow
-                    Write-Host "$line"        # Full line
-                    Write-Host ""                            # empty line/CRLF
-                    $null = $textOut.AppendLine("${lineNumber}: $($m.Value)") #  do not output to console but to $null
-                    $null = $textOut.AppendLine("${lineNumber}: $line") #  do not output to console but to $null
-                    $null = $textOut.AppendLine("")  # empty line/CRLF 
-                    $matchCount++
-                }
-            } else {
-                # Literal search (case-sensitive)
-                foreach ($m in [regex]::Matches($line, $escpattern, $opt)) {
-                    Write-Host "${lineNumber}: " -NoNewline -ForegroundColor Yellow
-                    Write-Host "$($m.Value)"  -ForegroundColor Red  # Match 
-                    Write-Host "${lineNumber}:" -NoNewline -ForegroundColor Yellow
-                    Write-Host "$line"        # Full line
-                    Write-Host ""                            # empty line/CRLF
-                    $null = $textOut.AppendLine("${lineNumber}: $($m.Value)")  # do not output to console but to $null
-                    $null = $textOut.AppendLine("${lineNumber}: $line") #  do not output to console but to $null
-                    $null = $textOut.AppendLine("")  # empty line/CRLF 
-                    $matchCount++
-                }
-            }
+    foreach ($m in $orderedMatches) {
+        $matchCount++
+        # --- Context before ---
+        foreach ($l in $m.Before) {
+            # Console-Output
+            Write-Host ("{0,5}:" -f $l.LineNumber) -ForegroundColor Yellow -NoNewline
+            Write-Host " $($l.Text)"
+
+            # String-Out no colors
+            # $grepOutput += ("{0,5}: $($l.Text)`n" -f $l.LineNumber)
+            $grepOutput += ('{0,5}: ' -f $l.LineNumber) + $l.Text + "`n"
         }
+
+        # --- Match-Line ---
+        $lineNo = $m.StartLine
+        $line   = $lines[$lineNo - 1]
+
+        $prefix = $line.Substring(0, $m.StartColumn - 1)
+        $match  = $m.MatchValue
+        $suffix = $line.Substring($m.StartColumn - 1 + $match.Length)
+
+        # Console-Out
+        Write-Host ("{0,5}:" -f $lineNo) -ForegroundColor Yellow -NoNewline
+        Write-Host " $prefix" -NoNewline
+        Write-Host $match -ForegroundColor Red -NoNewline
+        Write-Host $suffix
+
+        # String-Output
+        # $grepOutput += ("{0,5}: $prefix$match$suffix`n" -f $lineNo)
+        $grepOutput += ('{0,5}: ' -f $l.LineNumber) + $prefix + $match + $suffix + "`n"
+
+        # --- Context after ---
+        foreach ($l in $m.After) {
+            # Console-Output
+            Write-Host ("{0,5}:" -f $l.LineNumber) -ForegroundColor Yellow -NoNewline
+            Write-Host " $($l.Text)"
+
+            # String-Output no colors
+            # $grepOutput += ("{0,5}: $($l.Text)`n" -f $l.LineNumber)
+            $grepOutput += ('{0,5}: ' -f $l.LineNumber) + $l.Text + "`n"
+        }
+
+        # empty line / CRLF
+        Write-Host ""
+        $grepOutput += "`n"
     }
     if ($matchCount -eq 0) {
         Write-Output "No matches at all"
@@ -421,10 +596,75 @@ if ($extractMatch) {
         Write-Host "Count of all matches is " -NoNewline
         Write-Host " $matchCount " -ForegroundColor Green -BackgroundColor DarkRed
         if ($fileOutput) {
-            writeFile($textOut.ToString())
+            $grepOutput += "`nCount of all matches is $matchCount.`n"
+            writeFile($grepOutput.ToString())
         }
     }
-} else {
+    ############################ORIGINAL BEGIN####################################
+    # $opt =  if ($ci) {
+    #             [System.Text.RegularExpressions.RegexOptions]::IgnoreCase -bor $regexOptions
+    #         } else {
+    #             $regexOptions
+    #         }
+    # # Match extraction: extract matches
+    # #### Printing line nr of match, match itself, CRLF, full line, CRLF ###
+    # # Define search string as empty variable
+    # $textOut = New-Object System.Text.StringBuilder
+    # $matchCount = 0
+    # $pattern = ""
+    # # Text splitting to lines
+    # $lines = $clipboardText -split "`r?`n"
+    # for ($j = 0; $j -lt $searchLines.Count; $j++) {
+    #     $pattern = $searchLines[$j]
+    #     $escpattern = [regex]::Escape($pattern)
+    #     # Iterate lines
+    #     #$escpattern = [regex]::Escape($pattern)
+    #     # Iterate lines
+    #     for ($i = 0; $i -lt $lines.Length; $i++) {
+    #         $lineNumber = $i + 1
+    #         $line = $lines[$i]
+    #         if ($r) {
+    #             # Regex-search (case-sensitive)
+    #             foreach ($m in [regex]::Matches($line, $pattern, $opt)) {
+    #                 Write-Host "${lineNumber}: " -NoNewline -ForegroundColor Yellow
+    #                 Write-Host "$($m.Value)"  -ForegroundColor Red  # Match 
+    #                 Write-Host "${lineNumber}:" -NoNewline -ForegroundColor Yellow
+    #                 Write-Host "$line"        # Full line
+    #                 Write-Host ""                            # empty line/CRLF
+    #                 $null = $textOut.AppendLine("${lineNumber}: $($m.Value)") #  do not output to console but to $null
+    #                 $null = $textOut.AppendLine("${lineNumber}: $line") #  do not output to console but to $null
+    #                 $null = $textOut.AppendLine("")  # empty line/CRLF 
+    #                 $matchCount++
+    #             }
+    #         } else {
+    #             # Literal search (case-sensitive)
+    #             foreach ($m in [regex]::Matches($line, $escpattern, $opt)) {
+    #                 Write-Host "${lineNumber}: " -NoNewline -ForegroundColor Yellow
+    #                 Write-Host "$($m.Value)"  -ForegroundColor Red  # Match 
+    #                 Write-Host "${lineNumber}:" -NoNewline -ForegroundColor Yellow
+    #                 Write-Host "$line"        # Full line
+    #                 Write-Host ""                            # empty line/CRLF
+    #                 $null = $textOut.AppendLine("${lineNumber}: $($m.Value)")  # do not output to console but to $null
+    #                 $null = $textOut.AppendLine("${lineNumber}: $line") #  do not output to console but to $null
+    #                 $null = $textOut.AppendLine("")  # empty line/CRLF 
+    #                 $matchCount++
+    #             }
+    #         }
+    #     }
+    # }
+    # if ($matchCount -eq 0) {
+    #     Write-Output "No matches at all"
+    # }
+    # else {
+    #     Write-Host "Count of all matches is " -NoNewline
+    #     Write-Host " $matchCount " -ForegroundColor Green -BackgroundColor DarkRed
+    #     if ($fileOutput) {
+    #         writeFile($textOut.ToString())
+    #     }
+    # }
+############################ORIGINAL END####################################
+} elseif ($replaceLines -and ($replaceLines | Where-Object { -not [string]::IsNullOrWhiteSpace($_.ToString()) })) {
+   
     # "Performing search and replace..."
     # "Performing search and replace..."
     # "Performing search and replace..."
@@ -439,38 +679,25 @@ if ($searchLines.Count -lt $replaceLines.Count) {  # Search terms being < replac
 }
 
  # Filling up entries for replacement, if too less are provided they are assumed to be vanished (replaced by NULL)
-if (-not [string]::IsNullOrWhiteSpace($searchFilePath) -and
-    -not [string]::IsNullOrWhiteSpace($replaceFilePath)  # Both need to exist
-    ) {
+# if (-not [string]::IsNullOrWhiteSpace($searchFilePath) -and
+#     -not [string]::IsNullOrWhiteSpace($replaceFilePath)  # Both need to exist
+#     ) {
     while ($replaceLines.Count -lt $searchLines.Count) {  # Filling replace terms to amount of search terms (possible because replace terms are assumed empty for missing lines)
         $replaceLines += '' # because empty lines are not recognized as lines, array will be filled with empty entries here for every empty line
     }
-}
-else {
-    #$searchLines = @($searchText)
-}
+# }
+# else {
+#     #$searchLines = @($searchText)
+# }
 
 # Main processing loop: iterate search/replace lines
-if ($null -ne $replaceLines -and $replaceLines.Count -gt 0 -and $null -ne $searchLines -and $searchLines.Count -gt 0) {  # Only runs if search/replaceLines-Array is existing and has content
+#if ($null -ne $replaceLines -and $replaceLines.Count -gt 0 -and $null -ne $searchLines -and $searchLines.Count -gt 0) {  # Only runs if search/replaceLines-Array is existing and has content
     for ($i = 0; $i -lt $searchLines.Count; $i++) {
         $searchContent = $searchLines[$i]
         $replaceContent = $replaceLines[$i]
-        # rest'd be obsolete
-        if ($ci) { 
-            if ($r) {
-                    $searchContent = '(?i)' + $searchContent
-            }
-            else {
-                $searchContent = '(?i)' + [regex]::Escape($searchContent)
-            }
-        }
-        else{
-            if ($r) {
-                $searchContent =  $searchContent
-            }
-            else {
-                $searchContent = [regex]::Escape($searchContent)
-            }
+
+        if (-not $r) { # Literal search, not regex: escape special characters
+            $searchContent = [regex]::Escape($searchContent)
         }
         try {
             #$regex = [regex]::new($searchContent)
@@ -478,12 +705,11 @@ if ($null -ne $replaceLines -and $replaceLines.Count -gt 0 -and $null -ne $searc
             $clipboardText = [regex]::Replace($clipboardText, $searchContent, $replaceContent, $regexOptions)
         }
         catch {
-            Write-Warning "Skipping invalid regex: $pattern - $_"
+            Write-Warning "Skipping invalid substitution: $pattern - $_"
             continue
         }
-        
     }
-}
+#}
 
 
 if ( [String]::CompareOrdinal($clipboardUnchanged, $clipboardText) -ne 0 ){ #byte by byte comparision seems to help here - it works!
@@ -513,3 +739,4 @@ if (-not $timeout.Contains("-")) {  # Negative values will yield waiting time at
 }
 # wait-Timeout(([int]([math]::Round(([double]($loopDelay -replace ',','.') * 1000)))))  # convert to ms
 } until (-not $endless)
+# 
