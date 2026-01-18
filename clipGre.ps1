@@ -1,21 +1,21 @@
 param (
     [Alias("folder1", "searchFolder", "sdir", "sd")]
-    [string[]]$searchFolderPath = "",   
+    [string[]]$searchFolderPath = @(),   
     [Alias("folder2", "replaceFolder", "rdir", "rd")]          
-    [string[]]$replaceFolderPath = "",
+    [string[]]$replaceFolderPath = @(),
     [Alias("file1", "searchFile", "sfile", "sf")]
-    [string[]]$searchFilePath = "",    
+    [string[]]$searchFilePath = @(),    
     [Alias("file2", "replaceFile", "rfile", "rf")]          
-    [string[]]$replaceFilePath = "",
+    [string[]]$replaceFilePath = @(),
     [Alias("text1", "search", "find", "findText", "searchFor", "st", "ft")]
-    [string[]]$searchText,   
+    [string[]]$searchText = @(),   
     [Alias("text2", "replace", "displace", "substitute", "replaceBy", "rt", "subt")]          
-    [string[]]$replaceText,
+    [string[]]$replaceText = @(),
     [Alias("onTheFly", "readInput", "ri", "interactiveMode", "im", "ia", "inputAsk")] 
     [switch]$interactive,
     [Alias("wait", "delay", "seconds", "time", "t" , "z")] 
     [string]$timeout = "0",
-    [Alias("regExOptions", "regExFlags", "modifier")] 
+    [Alias("reOptions", "regExFlags", "modifier")] 
     [string]$flags = "",
     [Alias("showHelp", "h", "hint", "usage")]          
     [switch]$Help = $false,
@@ -43,43 +43,6 @@ param (
     [switch]$endless
 )
 
-# Write-Host "pre-all: searchLines:"
-# Write-Host $searchLines
-# Write-Host "replaceLines:"
-# Write-Host $replaceLines
-# Write-Host "end"
-
-function Show-CharDebug {
-    param(
-        [Parameter(Mandatory)]
-        [Object]$InputData
-    )
-
-    # Falls Input ein Array ist, alle Elemente in einen String zusammenführen
-    if ($InputData -is [System.Array]) {
-        $InputData = -join $InputData
-    }
-
-    for ($i = 0; $i -lt $InputData.Length; $i++) {
-        $char = $InputData[$i]
-
-        switch ($char) {
-            "`r" { Write-Host "`r (CR)" -ForegroundColor Cyan  -NoNewline}
-            "`n" { Write-Host "`n (LF)" -ForegroundColor Cyan  -NoNewline}
-            "`t" { Write-Host "`t (TAB)" -ForegroundColor Yellow  -NoNewline}
-            default { Write-Host $char -NoNewline }
-        }
-    }
-}
-#Write-Host "Pipeline input present:" ($input.Count)
-# Write-Host "pre-all: begin show-CharDebug"
-# Show-CharDebug $searchText
-# Write-Host ""
-# Show-CharDebug $replaceText
-# Write-Host ""
-# Write-Host "end show-CharDebug"
-# Write-Host "DEBUG searchFilePath = '[$searchFilePath]'"
-# Write-Host "IsNullOrWhiteSpace = $([string]::IsNullOrWhiteSpace($searchFilePath))"
 function wait-Timeout([int]$additionalTime = 0) {
     # accepts additional timeout, for internals requiring waiting time (e.g. help text)
     $newDelay = [math]::Abs([int]([math]::Round(([double]($timeout -replace ',','.') * 1000)))) + $additionalTime #convert , to . then from string to double multiply 1k then round and convert to int and then take abs
@@ -126,38 +89,6 @@ function writeFile([string]$content) {
     Write-Output "Results saved in file: $fileName"
 }
 
-
-function set-Standard() {  # Set standard preferences (file/folder names) if applicable (dependant of existence)
-    # Standard paths
-    $searchFile = ".\SEARCH.txt"
-    $replaceFile = ".\REPLACE.txt"
-    $searchFolder = ".\SEARCH\"
-    $replaceFolder = ".\REPLACE\"
-    $script:ci = $true  # Standard settings include case-insensitivity
-    $script:timeout = "1.5"  # Standard settings include a short timeout
-
-    # Check existence
-    $filesExist = (Test-Path $searchFile -PathType Leaf) -and (Test-Path $replaceFile -PathType Leaf)
-    $foldersExist = (Test-Path $searchFolder -PathType Container) -and (Test-Path $replaceFolder -PathType Container)
-
-    # Conditional assignment
-    if ($filesExist) {
-        $script:searchFilePath = $searchFile
-        $script:replaceFilePath = $replaceFile
-        Write-Host "File for search patterns is $searchFilePath"
-        Write-Host "File for replacement patterns is $replaceFilePath"
-    }
-    if ($foldersExist) {
-        $script:searchFolderPath = $searchFolder
-        $script:replaceFolderPath = $replaceFolder
-        Write-Host "Folder for search patterns is $searchFolderPath"
-        Write-Host "Folder for replacement patterns is $replaceFolderPath"
-    }
-    if (!($filesExist) -and -Not($foldersExist)) {
-        Write-Host "No standard files or folders found, proceeding without them."
-    }
-}
-
 function show-Helptext() {  # self descriptive: print help text
     Write-Host ""
     Write-Host "This PowerShell script is intended to apply basic search (and replace) actions to the content of the clipboard. Search/Replace strings may not only be provided as named CLI arguments, but also in the form of lists as predefined files/folders with suitable content."
@@ -188,41 +119,6 @@ function show-Helptext() {  # self descriptive: print help text
     Write-Host ""
 }
 
-function check-Folder {  # Function to check for existence of folder and for files bearing content
-    param (
-        [Parameter(Mandatory = $true)]
-        [string]$Path,
-        [switch]$Strict
-    )
-    # Check whether path is a folder
-    if (-not (Test-Path $Path -PathType Container)) {
-        return $false
-    }
-
-    # To accept relative or absolute paths
-    $fullPath = Convert-Path $Path
-    # Call top layer of files
-    try {
-        $files = Get-ChildItem -Path $fullPath -File -Filter *.txt
-    }
-    catch {
-        return $false
-    }
-    
-    # Check for files
-    if ($files.Count -eq 0) {
-        return $false
-    }
-    if ($Strict) {
-        # Check for file content (size > 0)
-        foreach ($file in $files) {
-            if ($file.Length -eq 0) {
-                return $false
-            }
-        }
-    }
-    return $true
-}
 function Get-RegexMatchesWithContextAB {
     param (
         [Parameter(Mandatory)]
@@ -253,10 +149,10 @@ function Get-RegexMatchesWithContextAB {
         $matchLineCount = $matchLines.Count
 
         # --- Kontextgrenzen ---
-        $beforeStart = [Math]::Max(1, $startLine - $A)
+        $beforeStart = [Math]::Max(1, $startLine - $B)
         $afterEnd    = [Math]::Min(
             $lines.Count,
-            $startLine + $matchLineCount - 1 + $B
+            $startLine + $matchLineCount - 1 + $A
         )
 
         [PSCustomObject]@{
@@ -288,71 +184,6 @@ function Get-RegexMatchesWithContextAB {
         }
     }
 }
-function Write-MatchWithContextAB {
-    param (
-        [Parameter(Mandatory)]
-        $MatchObject,
-
-        [string[]]$AllLines
-    )
-
-    # --- Kontext VORHER ---
-    foreach ($line in $MatchObject.Before) {
-        Write-Host ("{0,5}:" -f $line.LineNumber) -ForegroundColor Yellow -NoNewline
-        Write-Host " $($line.Text)"
-    }
-
-    # --- MATCH ---
-    $matchText   = $MatchObject.MatchValue
-    $remaining   = $matchText.Length
-    $offsetInMatch = 0
-
-    foreach ($line in $MatchObject.Match) {
-
-        $lineNo   = $line.LineNumber
-        $fullLine = $AllLines[$lineNo - 1]
-
-        # Match-Start in dieser Zeile
-        if ($lineNo -eq $MatchObject.StartLine) {
-            $startCol = $MatchObject.StartColumn
-        } else {
-            $startCol = 1
-        }
-
-        # Maximale Match-Länge in dieser Zeile
-        $maxLen = $fullLine.Length - $startCol + 1
-        $lenInThisLine = [Math]::Min($remaining, $maxLen)
-
-        # Teile der Zeile
-        $prefix = if ($startCol -gt 1) {
-            $fullLine.Substring(0, $startCol - 1)
-        } else { '' }
-
-        $matchPart = $fullLine.Substring($startCol - 1, $lenInThisLine)
-
-        $suffixStart = $startCol - 1 + $lenInThisLine
-        $suffix = if ($suffixStart -lt $fullLine.Length) {
-            $fullLine.Substring($suffixStart)
-        } else { '' }
-
-        # Ausgabe (REIHENFOLGE WICHTIG!)
-        Write-Host ("{0,5}:" -f $lineNo) -ForegroundColor Yellow -NoNewline
-        Write-Host " $prefix" -NoNewline
-        Write-Host $matchPart -ForegroundColor Red -NoNewline
-        Write-Host $suffix
-
-        $remaining -= $lenInThisLine
-        if ($remaining -le 0) { break }
-    }
-
-    # --- Kontext NACHHER ---
-    foreach ($line in $MatchObject.After) {
-        Write-Host ("{0,5}:" -f $line.LineNumber) -ForegroundColor Yellow -NoNewline
-        Write-Host " $($line.Text)"
-    }
-
-    Write-Host ''
-}
 
 
 # $C is $A and $B combined, to reduce variable amount we sum them up here
@@ -367,8 +198,8 @@ $B += $C
 if (
     $Help.IsPresent -or  # Help flag provided or
     (
-        ($searchFolderPath.Trim().Length -eq 0) -and    # No folder         and
-        ($searchFilePath.Trim().Length -eq 0) -and      # No file           and
+        (-not $searchFolderPath -or $searchFolderPath.Count -eq 0) -and    # No folder         and
+        (-not $searchFilePath -or $searchFilePath.Count -eq 0) -and      # No file           and
         (-not $searchText -or $searchText.Count -eq 0) -and  # No CLI args
         (-not $interactive)  # No interactive mode 
     )
@@ -376,7 +207,7 @@ if (
     show-Helptext
     check-Confirmation
     wait-Timeout(750)
-    exit
+    return 0
 }
 
 $grepOutput = ""
@@ -432,14 +263,14 @@ $clipboardUnchanged = $clipboardText
 if ([string]::IsNullOrWhiteSpace($clipboardText)) {
     Write-Output "No clipboard available. Nothing to do!"
     if (-not $endless) {
-        exit
+        return 1
     }
 }
 # Add the provided search/replace text from CLI arguments to searcharray
 if ($searchText | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) {
     $searchLines += $searchText  # add cli args to array
 }
-if ($replaceText | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) {
+if ($replaceText) {  # Explicitly allowed to be empty (for deletion)
     $replaceLines += $replaceText
 }
 
@@ -459,7 +290,7 @@ foreach ($folder in $replaceFolderPath) {
     }
 }
 
-$searchFilePath = $searchFilePath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } # For case of wrong user input,
+$searchFilePath = $searchFilePath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } # For case of wrong user input, filter empty entries
 $replaceFilePath = $replaceFilePath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } # For case of wrong user input,
 
 $searchFilePath += $searchFiles.FullName  # Append found files from folders to file path arrays
@@ -483,7 +314,7 @@ if ($wholeFile) {  # Read as whole files or linewise
             $replaceLines += $replaceContent  # Whole file as one entry
         }
     }
-} else {  # Linewise reading
+} else {  # Linewise reading, lines as elements of arrays
     foreach ($file in $replaceFilePath) {
         if (Test-Path -Path $file -PathType Leaf) {
             $replaceLines += @(Get-Content -Path $file)  # Urgent need of arrays: @( )
@@ -538,8 +369,8 @@ if ($extractMatch -and ($searchLines -and ($searchLines | Where-Object { -not [s
             -RegexOptions (
                 $regexOptions
             ) `
-            -A $B `
-            -B $A
+            -A $A `
+            -B $B
     }
     $orderedMatches = $allMatches | Sort-Object Index
     $matchCount = 0
@@ -588,18 +419,18 @@ if ($extractMatch -and ($searchLines -and ($searchLines | Where-Object { -not [s
         # empty line / CRLF
         Write-Host ""
         $grepOutput += "`n"
-    }
-    if ($matchCount -eq 0) {
-        Write-Output "No matches at all"
-    }
-    else {
-        Write-Host "Count of all matches is " -NoNewline
-        Write-Host " $matchCount " -ForegroundColor Green -BackgroundColor DarkRed
-        if ($fileOutput) {
-            $grepOutput += "`nCount of all matches is $matchCount.`n"
-            writeFile($grepOutput.ToString())
         }
-    }
+        if ($matchCount -eq 0) {
+            Write-Output "No matches at all"
+        }
+        else {
+            Write-Host "Count of all matches is " -NoNewline
+            Write-Host " $matchCount " -ForegroundColor Green -BackgroundColor DarkRed
+            if ($fileOutput) {
+                $grepOutput += "`nCount of all matches is $matchCount.`n"
+                writeFile($grepOutput.ToString())
+            }
+        }
     ############################ORIGINAL BEGIN####################################
     # $opt =  if ($ci) {
     #             [System.Text.RegularExpressions.RegexOptions]::IgnoreCase -bor $regexOptions
@@ -663,7 +494,7 @@ if ($extractMatch -and ($searchLines -and ($searchLines | Where-Object { -not [s
     #     }
     # }
 ############################ORIGINAL END####################################
-} elseif ($replaceLines -and ($replaceLines | Where-Object { -not [string]::IsNullOrWhiteSpace($_.ToString()) })) {
+} elseif ($replaceLines -and ($replaceLines | Where-Object { -not [string]::IsNullOrWhiteSpace($_.ToString()) })) {  # Test whether replaceLines has content
    
     # "Performing search and replace..."
     # "Performing search and replace..."
@@ -675,7 +506,7 @@ if ($extractMatch -and ($searchLines -and ($searchLines | Where-Object { -not [s
 if ($searchLines.Count -lt $replaceLines.Count) {  # Search terms being < replace terms is impossible
     Write-Error "Error: Line count of provided files not usable, check entries!"
     Read-Host -Prompt "Press enter to end program"
-    exit
+    return 2
 }
 
  # Filling up entries for replacement, if too less are provided they are assumed to be vanished (replaced by NULL)
@@ -705,7 +536,7 @@ if ($searchLines.Count -lt $replaceLines.Count) {  # Search terms being < replac
             $clipboardText = [regex]::Replace($clipboardText, $searchContent, $replaceContent, $regexOptions)
         }
         catch {
-            Write-Warning "Skipping invalid substitution: $pattern - $_"
+            Write-Warning "Skipping invalid substitution: $searchContent - $_"
             continue
         }
     }
