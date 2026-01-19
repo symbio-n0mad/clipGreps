@@ -90,7 +90,6 @@ All additional functional flags are categorized as extended capabilities:
   - Files are sorted alphabetical prior to usage
   - File count must match with replace folder file count
   - Applied **file by file** (compatible with `-ci`)
-  - Use of `-r`: free formatable multine RegEx is activated by default
   - Empty files **deprecated**
 
 - Explicit **replace folder** (`-replaceFolder <FOLDERNAME>`)  
