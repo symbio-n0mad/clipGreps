@@ -84,7 +84,7 @@ All additional functional flags are categorized as extended capabilities:
 
 - Explicit **replace file** (`-replaceFile <FILENAME>`)  
   - Applied **line by line** or **file by file**
-  - **Empty lines = deletions**
+  - **Empty patterns = deletions**
 
 - Explicit **search folder** (`-searchFolder <FOLDERNAME>`)  
   - Only *.txt files are used, whole files at once
@@ -98,7 +98,7 @@ All additional functional flags are categorized as extended capabilities:
   - Files are sorted alphabetical prior to usage
   - File count has to match search folder file count
   - Applied **file by file** or **line by line**
-  - **Empty files = deletions**
+  - **Empty patterns = deletions**
 
 - Can **output to file** instead of clipboard (`-write`)  
   - If no filename is given, a **timestamp** is used  
