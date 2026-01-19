@@ -403,7 +403,7 @@ if ($extractMatch -and ($searchLines -and ($searchLines | Where-Object { -not [s
 
         # String-Output
         # $grepOutput += ("{0,5}: $prefix$match$suffix`n" -f $lineNo)
-        $grepOutput += ('{0,5}: ' -f $l.LineNumber) + $prefix + $match + $suffix + "`n"
+        $grepOutput += ('{0,5}: ' -f $lineNo) + $prefix + $match + $suffix + "`n"
 
         # --- Context after ---
         foreach ($l in $m.After) {
