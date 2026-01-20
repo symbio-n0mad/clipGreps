@@ -89,11 +89,11 @@ function writeFile([string]$content) {
     Write-Output "Results saved in file: $fileName"
 }
 
-function show-Helptext() {  # self descriptive: print help text
+function show-Helptext() {  # self descriptive:  print help text
     Write-Host ""
-    Write-Host "This PowerShell script is intended to apply basic search (and replace) actions to the content of the clipboard. Search/Replace strings may not only be provided as named CLI arguments, but also in the form of lists as predefined files/folders with suitable content."
+    Write-Host "This PowerShell script is intended to apply basic search (and replace) actions to the content of the clipboard.  Search/Replace strings may not only be provided as named CLI arguments, [...]
     Write-Host ""
-    Write-Host "Basic example: clipGre.ps1 -searchText 'old1' -replaceText 'newString'"
+    Write-Host "Basic example:  clipGre.ps1 -searchText 'old1' -replaceText 'newString'"
     Write-Host ""
     Write-Host "Usage:"
     Write-Host "  -sd / -searchFolderPath   Path to folder with search files as string"
@@ -105,17 +105,20 @@ function show-Helptext() {  # self descriptive: print help text
     Write-Host "  -rt / -replaceText        Replacement string (or comma separated string list)"
     Write-Host ""
     Write-Host "  -x / -grep                Search and extract patterns"
+    Write-Host "  -A / -after               Lines of context after the match"
+    Write-Host "  -B / -before              Lines of context before the match"
+    Write-Host "  -C / -combined            Lines of context combined (before and after)"
     Write-Host "  -r / -RegEx               Permit use of Regular Expressions"
     Write-Host "  -ci / -ignoreCase         Ignore case while searching"
     Write-Host "  -ia / -interactive        Queries for (single) search and replace strings interactively"
     Write-Host ""
+    Write-Host "  -v / -wholeFile           Read files as whole content instead of line-by-line"
     Write-Host "  -w / -fileOutput          Write to file, not clipboard"
     Write-Host "  -o / -saveAs              Provide output filename as string (optional)"
     Write-Host ""
     Write-Host "  -p / -persist             Waiting for confirmation at the end holds open the terminal"
     Write-Host "  -t / -timeout             Waiting time in seconds before ending the program"
     Write-Host "  -8 / -endless             Repeat the process endlessly"
-    Write-Host "  -ld / -loopDelay          Delay between endless-loops in seconds (only with -endless)"
     Write-Host ""
 }
 
