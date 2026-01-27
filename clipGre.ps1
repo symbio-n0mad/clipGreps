@@ -255,7 +255,7 @@ if (
     show-Helptext
     check-Confirmation
     wait-Timeout(750)
-    return 0
+    return 
 }
 
 
@@ -314,11 +314,10 @@ $clipboardText = Get-Clipboard -Raw
 $clipboardUnchanged = $clipboardText
 
 
-
 if ([string]::IsNullOrWhiteSpace($clipboardText)) {
-    Write-Output "No clipboard available. Nothing to do!"
+    Write-Output "No clipboard available. Nothing to do!" -ForegroundColor Yellow
     if (-not $endless) {
-        return 1
+        return 
     }
 }
 # Add the provided search/replace text from CLI arguments to searcharray
@@ -431,49 +430,60 @@ if ($wholeFile) {  # Read as whole files or linewise
 
 if ($extractMatch -and ($searchLines -and ($searchLines | Where-Object { -not [string]::IsNullOrWhiteSpace($_.ToString()) }))) {
     $lines = $clipboardText -split "`n", -1
+    $writeOut = New-Object System.Text.StringBuilder
     $newB = $B
     $newA = $A
     $matchCount = 0
+    $allMatches = @()
     foreach ($pattern in $searchLines) {
-        $allMatches = [System.Text.RegularExpressions.Regex]::Matches($clipboardText, $pattern, $regexOptions)
-        foreach ($m in $allMatches) {
-            $matchCount++
-            $matchMetaData = Get-StringLineInfo -Text $clipboardText -Position $m.Index -Length $m.Length
-            Write-Host "Line " -NoNewline
-            Write-Host "$($matchMetaData.StartLine)" -NoNewline -ForegroundColor Yellow
-            Write-Host ", matched: `"" -NoNewline
-            Write-Host "$($m.Groups[0].Value)" -ForegroundColor Red -NoNewline
-            Write-Host "`" at index $($m.Index) with length $($m.Length) and context:"      
-            if($B -gt 0) {
-                while(($matchMetaData.StartLine - $newB) -lt 1 ) {  # decrement B if out of bounds
-                    $newB--
-                }
-                $outputLines = $lines[($matchMetaData.StartLine - $newB - 1)..($matchMetaData.StartLine-1-1)]
-                $outputLines | ForEach-Object { Write-Host $_ }
+        $allMatches += [System.Text.RegularExpressions.Regex]::Matches($clipboardText, $pattern, $regexOptions)  # Adding all matches to one array
+    }
+    $matchCount = $allMatches.Count  # Array count of all matches
+    $allMatches = $allMatches | Sort-Object Index  # Sorting all matches by index for ordered printout
+
+    foreach ($m in $allMatches) {
+        # $matchCount++
+        $matchMetaData = Get-StringLineInfo -Text $clipboardText -Position $m.Index -Length $m.Length
+        Write-Host "Line " -NoNewline
+        Write-Host "$($matchMetaData.StartLine)" -NoNewline -ForegroundColor Yellow
+        Write-Host ", matched: `"" -NoNewline
+        Write-Host "$($m.Groups[0].Value)" -ForegroundColor Red -NoNewline
+        Write-Host "`" at index $($m.Index) with length $($m.Length) and context:"      
+        $null = $writeOut.AppendLine("Line $($matchMetaData.StartLine), matched: `"$($m.Groups[0].Value)`" at index $($m.Index) with length $($m.Length) and context:`n")  # Append to output string
+
+        if($B -gt 0) {
+            while(($matchMetaData.StartLine - $newB) -lt 1 ) {  # decrement B if out of bounds
+                $newB--
             }
-            $lines[($matchMetaData.StartLine-1)..($matchMetaData.EndLine-1)] | ForEach-Object { Write-Host $_}
-            if($A -gt 0) {
-                while(($matchMetaData.EndLine + $newA) -gt $matchMetaData.TotalLines ) {  # decrement A if out of bounds
-                    $newA--
-                }
-                $outputLines = $lines[($matchMetaData.EndLine)..($matchMetaData.EndLine - 1 + $newA )]
-                $outputLines | ForEach-Object { Write-Host $_ }
-                
+            $outputLines = $lines[($matchMetaData.StartLine - $newB - 1)..($matchMetaData.StartLine-1-1)]
+            #$outputLines | ForEach-Object { $writeOut.AppendLine($_) }  # Append and print
+            $outputLines | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }
+        }
+        # $lines[($matchMetaData.StartLine-1)..($matchMetaData.EndLine-1)] | ForEach-Object { Write-Host $_ }
+
+        $lines[($matchMetaData.StartLine-1)..($matchMetaData.EndLine-1)] | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }  # Append and print match lines
+        if($A -gt 0) {
+            while(($matchMetaData.EndLine + $newA) -gt $matchMetaData.TotalLines ) {  # decrement A if out of bounds
+                $newA--
             }
+            $outputLines = $lines[($matchMetaData.EndLine)..($matchMetaData.EndLine - 1 + $newA )]
+            #$outputLines | ForEach-Object { $writeOut.AppendLine($_) }  # Append and print
+            $outputLines | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }
+            
         }
     }
     if ($matchCount -eq 0) {
-        Write-Output "No matches at all" -ForegroundColor Yellow
+        Write-Host "No matches at all" -ForegroundColor Yellow
     }
     else {
         Write-Host "Count of all matches is " -NoNewline
         Write-Host " $matchCount " -ForegroundColor Green -BackgroundColor DarkRed
-        # if ($fileOutput) {
-        #     writeFile($textOut.ToString())
-        # }
+        if ($fileOutput) {
+            writeFile($writeOut.ToString())
+        }
     }
 }
-
+        
 
 
 # Process the grepping functionality: extracting matches
@@ -623,7 +633,7 @@ elseif ($replaceLines -and ($replaceLines | Where-Object { -not [string]::IsNull
 if ($searchLines.Count -lt $replaceLines.Count) {  # Search terms being < replace terms is impossible
     Write-Error "Error: Line count of provided files not usable, check entries!"
     Read-Host -Prompt "Press enter to end program"
-    return 2
+    return 
 }
 
  # Filling up entries for replacement, if too less are provided they are assumed to be vanished (replaced by NULL)
