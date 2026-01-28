@@ -450,22 +450,21 @@ if ($extractMatch -and ($searchLines -and ($searchLines | Where-Object { -not [s
         Write-Host "$($m.Groups[0].Value)" -ForegroundColor Red -NoNewline
         Write-Host "`" at index $($m.Index) with length $($m.Length) and context:"      
         $null = $writeOut.AppendLine("Line $($matchMetaData.StartLine), matched: `"$($m.Groups[0].Value)`" at index $($m.Index) with length $($m.Length) and context:`n")  # Append to output string
-
-        if($B -gt 0) {
-            while(($matchMetaData.StartLine - $newB) -lt 1 ) {  # decrement B if out of bounds
-                $newB--
-            }
+        
+        while(($matchMetaData.StartLine - $newB) -lt 1 ) {  # decrement B if out of bounds
+            $newB--
+        }
+        while(($matchMetaData.EndLine + $newA) -gt $matchMetaData.TotalLines ) {  # decrement A if out of bounds
+            $newA--
+        }
+        if($newB -gt 0) {
             $outputLines = $lines[($matchMetaData.StartLine - $newB - 1)..($matchMetaData.StartLine-1-1)]
             #$outputLines | ForEach-Object { $writeOut.AppendLine($_) }  # Append and print
             $outputLines | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }
         }
         # $lines[($matchMetaData.StartLine-1)..($matchMetaData.EndLine-1)] | ForEach-Object { Write-Host $_ }
-
         $lines[($matchMetaData.StartLine-1)..($matchMetaData.EndLine-1)] | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }  # Append and print match lines
-        if($A -gt 0) {
-            while(($matchMetaData.EndLine + $newA) -gt $matchMetaData.TotalLines ) {  # decrement A if out of bounds
-                $newA--
-            }
+        if($newA -gt 0) {
             $outputLines = $lines[($matchMetaData.EndLine)..($matchMetaData.EndLine - 1 + $newA )]
             #$outputLines | ForEach-Object { $writeOut.AppendLine($_) }  # Append and print
             $outputLines | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }
