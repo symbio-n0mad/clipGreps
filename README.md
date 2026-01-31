@@ -74,7 +74,7 @@ All additional functional flags are categorized as extended capabilities:
 - **Grep** (`-grep`) supports context
   - (`-A "2"`) lines following the match to print
   - (`-B "3"`) lines before the match to print
-  - (`-C "1"`) lines to before and after
+  - (`-C "1"`) lines to print before and after the match
 
 - **RegEx** mode (`-r`) available
   - All input search patterns are interpreted as RegEx (.NET flavor)
