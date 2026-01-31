@@ -69,11 +69,16 @@ All additional functional flags are categorized as extended capabilities:
 - **Inline strings** may be provided as array
   - E. g. `-search "foo","bar","baz"` `-replace "rea","lwo","rds"`
 
+- **Case-insensitive mode** (`-ci`) for search patterns
+
+- **Grep** (`-grep`) supports context
+  - (`-A "2"`) lines following the match to print
+  - (`-B "3"`) lines before the match to print
+  - (`-C "1"`) lines to before and after
+
 - **RegEx** mode (`-r`) available
   - All input search patterns are interpreted as RegEx (.NET flavor)
-
-- **Case-insensitive mode** (`-ci`) for search patterns
-  - Despite being often standardized, here an explicit call is necessary
+  - RegEx options may be provided as flags `-flags "mi"`
 
 - Interactive **prompt** for single **search/replace** strings (`-interactive`)
     - Provide search/replace strings at program start, on the fly.
