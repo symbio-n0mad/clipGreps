@@ -78,26 +78,29 @@ All additional functional flags are categorized as extended capabilities:
 - Interactive **prompt** for single **search/replace** strings (`-interactive`)
     - Provide search/replace strings at program start, on the fly.
 
-- Explicit **search file** (`-searchFile <FILENAME>`)  
-  - Applied **line by line** in ordered fashion (compatible with `-ci` and `-r`)
+- Reading **input** files **line by line**, counting every line as single expression by default.
+    - Instead whole files may be parsed as a single expression (`-wholeFile`)
+
+- Explicit **search files** (`-searchFile <FILENAME>`)  
+  - May be provided as an array
   - Empty lines **deprecated**
 
-- Explicit **replace file** (`-replaceFile <FILENAME>`)  
-  - Applied **line by line** or **file by file**
+- Explicit **replace files** (`-replaceFile <FILENAME>`)  
+  - May be provided as an array
   - **Empty patterns = deletions**
 
 - Explicit **search folder** (`-searchFolder <FOLDERNAME>`)  
-  - Only *.txt files are used, whole files at once
+  - May be provided as an array
+  - Only *.txt files are used
   - Files are sorted alphabetical prior to usage
   - File count must match with replace folder file count
-  - Applied **file by file** or **line by line**
   - Empty files **deprecated**
 
-- Explicit **replace folder** (`-replaceFolder <FOLDERNAME>`)  
-  - Only *.txt files are used, whole files at once
+- Explicit **replace folder** (`-replaceFolder <FOLDERNAME>`) 
+  - May be provided as an array 
+  - Only *.txt files are used
   - Files are sorted alphabetical prior to usage
   - File count has to match search folder file count
-  - Applied **file by file** or **line by line**
   - **Empty patterns = deletions**
 
 - Can **output to file** instead of clipboard (`-write`)  
