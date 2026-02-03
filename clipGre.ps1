@@ -7,13 +7,13 @@ param (
     [string[]]$searchFilePath = @(),    
     [Alias("replaceFile", "rfile", "rf")]          
     [string[]]$replaceFilePath = @(),
-    [Alias("search", "find", "findText", "searchFor", "st", "ft")]
+    [Alias("search", "find", "findText", "st", "ft")]
     [string[]]$searchText = @(),   
-    [Alias("replace", "displace", "substitute", "replaceBy", "rt")]          
+    [Alias("replace", "displace", "substitute", "rt")]          
     [string[]]$replaceText = @(),
     [Alias("onTheFly", "readInput", "ri", "ia")] 
     [switch]$interactive,
-    [Alias("wait", "delay", "d", "time", "t")] 
+    [Alias("wait", "delay", "d", "sleep")] 
     [string]$timeout = "0",
     [Alias("reOptions", "regExFlags", "modifier")] 
     [string]$flags = "",
@@ -39,7 +39,7 @@ param (
     [switch]$persist = $false,  
     [Alias("grep", "ext", "e", "x", "extract", "g")]    
     [switch]$extractMatch,
-    [Alias("forever", "repeat", "nonstop", "8", "loop", "relentless")]    
+    [Alias("repeat", "loop", "relentless")]    
     [switch]$endless
 )
 
@@ -96,11 +96,20 @@ function Get-StringLineInfo {
 
 
 function Read-Input {
-    $search  = Read-Host "Please enter search text"
-    if(-not $extractMatch){
+    $flags = ""
+    $replace = ""
+    $search = ""
+    if ($r) {
+        $flags = Read-Host "Please enter regex flags (e.g. 'i' for ignore case, 'm' for multiline, leave empty for none) "
+        $search  = Read-Host "Please enter search text (.NET flavor regex syntax allowed) "
+    } else {
+        $search  = Read-Host "Please enter search text"
+    }
+    if (-not $extractMatch){
         $replace = Read-Host "Please enter replacement text"
     }
     return [PSCustomObject]@{
+        Flags  = $flags
         Search  = $search
         Replace = $replace
     }
@@ -159,6 +168,33 @@ function show-Helptext() {  # self descriptive:  print help text
     Write-Host ""
 }
 
+function apply-RegexFlags() {
+    foreach ($char in $flags.ToCharArray()) {  # Convert flag string to regex options
+        switch ($char) {
+            'i' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::IgnoreCase }
+            'm' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::Multiline }
+            's' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::Singleline }
+            'x' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::IgnorePatternWhitespace }
+
+            # exotic options:
+            'e' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::ExplicitCapture }
+            'c' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::Compiled }
+            'u' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::CultureInvariant }
+            'j' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::ECMAScript }
+            'r' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::RightToLeft }
+            'b' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::NonBacktracking }
+
+            default {
+                Write-Warning "Unknown modifier: '$char'"
+            }
+        }
+    }
+}
+
+function prepare-SearchnReplace() {
+    
+        
+}
 
 #PROGRAM STARTS HERE
 
@@ -186,38 +222,22 @@ $B += $C
 $searchFiles = @()  # initialize arrays
 $replaceFiles = @()  # empty arrays
 
-$searchLines  = @()  # initialize arrays
-$replaceLines = @()  # empty arrays
+
 
 if($ci) {
     $regexOptions = [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
 } else {
     $regexOptions = [System.Text.RegularExpressions.RegexOptions]::None
 }
-
-foreach ($char in $flags.ToCharArray()) {  # Convert flag string to regex options
-    switch ($char) {
-        'i' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::IgnoreCase }
-        'm' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::Multiline }
-        's' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::Singleline }
-        'x' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::IgnorePatternWhitespace }
-
-        # exotic options:
-        'e' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::ExplicitCapture }
-        'c' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::Compiled }
-        'u' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::CultureInvariant }
-        'j' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::ECMAScript }
-        'r' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::RightToLeft }
-        'b' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::NonBacktracking }
-
-        default {
-            Write-Warning "Unknown modifier: '$char'"
-        }
-    }
+if (-not $interactive) {
+    apply-RegexFlags
 }
+
 
 do { # (Endless) loop start
 
+$searchLines  = @()  # initialize arrays
+$replaceLines = @()  # empty arrays
 
 if ($timeout.Contains("-")) {  # Negative values will yield waiting time at program start
     wait-Timeout
@@ -227,19 +247,22 @@ if ($interactive) {
     $userRead = Read-Input
     $searchLines += $userRead.Search
     $replaceLines += $userRead.Replace
-}    
+    $flags = $userRead.Flags
+    apply-RegexFlags
+}
 # Read text from clipboard
 $clipboardText = Get-Clipboard -Raw
 $clipboardUnchanged = $clipboardText
 
 
 if ([string]::IsNullOrWhiteSpace($clipboardText)) {
-    Write-Output "No clipboard available. Nothing to do!" -ForegroundColor Yellow
+    Write-Output "No clipboard available. Nothing to do!" -ForegroundColor Magenta
     if (-not $endless) {
         return 
     }
 }
-# Add the provided search/replace text from CLI arguments to searcharray
+
+ # Add the provided search/replace text from CLI arguments to searcharray
 if ($searchText | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) {
     $searchLines += $searchText  # add cli args to array
 }
@@ -399,19 +422,20 @@ if ( [String]::CompareOrdinal($clipboardUnchanged, $clipboardText) -ne 0 ){ #byt
     else {  # Else = no file output? -> then set clipboard content
         if ([string]::IsNullOrEmpty($clipboardText)) {
             $null | Set-Clipboard  # explict deletion because Set-Clipboard does not accept $null-arrays/strings
+            Write-Host 'Clipboard is empty now.' -ForegroundColor Blue
         }
         else {
             Set-Clipboard -Value $clipboardText
         }
-        Write-Host 'Clipboard successfully modified.'
+        Write-Host 'Clipboard successfully modified.' -ForegroundColor Green
     }
 }
 else {
-    Write-Host 'Clipboard text has not changed.'
+    Write-Host 'Clipboard text has not changed.' -ForegroundColor Yellow
 }
 }
-$searchLines  = @()  # reset arrays for case of endless loop
-$replaceLines = @()  # empty arrays
+# $searchLines  = @()  # reset arrays for case of endless loop
+# $replaceLines = @()  # empty arrays
 
 check-Confirmation
 if (-not $timeout.Contains("-")) {  # Negative values will yield waiting time at program start
