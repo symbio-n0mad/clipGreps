@@ -100,7 +100,12 @@ function Read-Input {
     $replace = ""
     $search = ""
     if ($r) {
-        $flags = Read-Host "Please enter regex flags (e.g. 'i' for ignore case, 'm' for multiline, leave empty for none) "
+        if ($Script:flags -eq "") {
+            $flags = Read-Host "Please enter regex flags (e.g. 'i' for ignore case, 'm' for multiline, leave empty for none) "
+        } else {
+            $flags = $Script:flags
+        }
+        
         $search  = Read-Host "Please enter search text (.NET flavor regex syntax allowed) "
     } else {
         $search  = Read-Host "Please enter search text"
@@ -169,7 +174,7 @@ function show-Helptext() {  # self descriptive:  print help text
 }
 
 function apply-RegexFlags() {
-    foreach ($char in $flags.ToCharArray()) {  # Convert flag string to regex options
+    foreach ($char in $script:flags.ToCharArray()) {  # Convert flag string to regex options
         switch ($char) {
             'i' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::IgnoreCase }
             'm' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::Multiline }
@@ -189,12 +194,19 @@ function apply-RegexFlags() {
             }
         }
     }
+    if ($script:flags.Contains('j') -and ($script:flags.Contains('r') -or $script:flags.Contains('u') -or $script:flags.Contains('b') -or $script:flags.Contains('e') -or $script:flags.Contains('u') -or $script:flags.Contains('x'))) {
+        Write-Warning "Warning: 'b' (NonBacktracking) and 'j' (ECMAScript) options are mutually exclusive. 'b' will be ignored."
+       
+    }
+    if ($script:flags.Contains('b') -and $script:flags.Contains('r')) {
+        Write-Warning "Incompatible flags detected: 'b' (NonBacktracking) and 'r' (RightToLeft) should not be combined."
+       
+    }
+    return [PSCustomObject]@{
+        Options  = $regexOptions
+    }
 }
 
-function prepare-SearchnReplace() {
-    
-        
-}
 
 #PROGRAM STARTS HERE
 
@@ -230,7 +242,8 @@ if($ci) {
     $regexOptions = [System.Text.RegularExpressions.RegexOptions]::None
 }
 if (-not $interactive) {
-    apply-RegexFlags
+    $regularOptions = apply-RegexFlags
+    $regexOptions = $regexOptions -bor $regularOptions.Options
 }
 
 
@@ -248,13 +261,16 @@ if ($interactive) {
     $searchLines += $userRead.Search
     $replaceLines += $userRead.Replace
     $flags = $userRead.Flags
-    apply-RegexFlags
+
+    $regularOptions = apply-RegexFlags
+    $regexOptions = $regexOptions -bor $regularOptions.Options
 }
 # Read text from clipboard
 $clipboardText = Get-Clipboard -Raw
 $clipboardUnchanged = $clipboardText
-
-
+# Write-Host "Current regex flags: " -NoNewline
+# Write-Host $flags
+# Write-Host $regexOptions
 if ([string]::IsNullOrWhiteSpace($clipboardText)) {
     Write-Output "No clipboard available. Nothing to do!" -ForegroundColor Magenta
     if (-not $endless) {
@@ -321,6 +337,8 @@ if ($wholeFile) {  # Read as whole files or linewise
 }
 
 # Main processing: Grep / Extract matches with context
+# Write-Host "Search patterns to process: " -NoNewline
+# Write-Host $searchLines
 
 if ($extractMatch -and ($searchLines -and ($searchLines | Where-Object { -not [string]::IsNullOrWhiteSpace($_.ToString()) }))) {
     $lines = $clipboardText -split "`n", -1
