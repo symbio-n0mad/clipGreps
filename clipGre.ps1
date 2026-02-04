@@ -51,7 +51,7 @@ function wait-Timeout([int]$additionalTime = 0) {
     }
 }
 
-function check-Confirmation() {
+function show-Confirmation() {
     if ($persist){
         Write-Host "Press Enter to exit..."
         [void][System.Console]::ReadLine()
@@ -173,7 +173,7 @@ function show-Helptext() {  # self descriptive:  print help text
     Write-Host ""
 }
 
-function apply-RegexFlags() {
+function set-RegexFlags() {
     foreach ($char in $script:flags.ToCharArray()) {  # Convert flag string to regex options
         switch ($char) {
             'i' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::IgnoreCase }
@@ -207,6 +207,76 @@ function apply-RegexFlags() {
     }
 }
 
+function get-SearchnReplaceExpressions() {
+    $searchLinesInside  = @()  # initialize arrays
+    $replaceLinesInside = @()  # empty arrays
+
+    # Add the provided search/replace text from CLI arguments to searcharray
+    if ($searchText | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) {
+        $searchLinesInside += $searchText  # add cli args to array
+    }
+    if ($replaceText) {  # Explicitly allowed to be empty (for deletion)
+        $replaceLinesInside += $replaceText
+    }
+
+    # Get list of text files from each provided folder path
+    $searchFolderPath = $searchFolderPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }  # Filter empty entries,
+    foreach ($folder in $searchFolderPath) {
+        if (Test-Path -LiteralPath $folder) {
+            $searchFilePath += Get-ChildItem -LiteralPath $folder -Filter *.txt -File |
+                            Sort-Object Name |
+                            Select-Object -ExpandProperty FullName
+        }
+    }
+    $replaceFolderPath = $replaceFolderPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } # Filter empty entries,
+    foreach ($folder in $replaceFolderPath) {
+        if (Test-Path -Path $folder) {
+            $replaceFilePath += Get-ChildItem -LiteralPath $folder -Filter *.txt -File |
+                            Sort-Object Name |
+                            Select-Object -ExpandProperty FullName
+        }
+    }
+
+    $searchFilePath = $searchFilePath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } # For case of wrong user input, filter empty entries
+    $replaceFilePath = $replaceFilePath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } # For case of wrong user input,
+
+    if ($wholeFile) {  # Read as whole files or linewise
+        foreach ($file in $searchFilePath) {
+            if (Test-Path -Path $file -PathType Leaf) {
+                # Read file contents and append to search/replace arrays
+                $searchContent = Get-Content -Path $file -Raw
+                $searchLinesInside  += $searchContent  # Whole file as one entry
+            }
+        }
+        foreach ($file in $replaceFilePath) {
+            if (Test-Path -Path $file -PathType Leaf) {
+                # Read file contents and append to search/replace arrays
+                $replaceContent = Get-Content -Path $file -Raw
+                if ($null -eq $replaceContent) {
+                    $replaceContent = ''
+                }
+                $replaceLinesInside += $replaceContent  # Whole file as one entry
+            }
+        }
+    } else {  # Linewise reading, lines as elements of arrays
+        foreach ($file in $replaceFilePath) {
+            if (Test-Path -Path $file -PathType Leaf) {
+                $replaceLinesInside += @(Get-Content -Path $file)  # Urgent need of arrays: @( )
+            }
+        }
+        foreach ($file in $searchFilePath) {
+            if (Test-Path -Path $file -PathType Leaf) {
+                $searchLinesInside += @(Get-Content -Path $file) 
+            }
+        }
+    }
+ 
+    return [PSCustomObject]@{
+        SearchFor  = $searchLinesInside
+        ReplaceWith = $replaceLinesInside
+    }
+}
+
 
 #PROGRAM STARTS HERE
 
@@ -221,7 +291,7 @@ if (
     )
 ) {
     show-Helptext
-    check-Confirmation
+    show-Confirmation
     wait-Timeout(750)
     return 
 }
@@ -231,8 +301,8 @@ if (
 $A += $C
 $B += $C
 
-$searchFiles = @()  # initialize arrays
-$replaceFiles = @()  # empty arrays
+# $searchFiles = @()  # initialize arrays
+# $replaceFiles = @()  # empty arrays
 
 
 
@@ -241,8 +311,9 @@ if($ci) {
 } else {
     $regexOptions = [System.Text.RegularExpressions.RegexOptions]::None
 }
+
 if (-not $interactive) {
-    $regularOptions = apply-RegexFlags
+    $regularOptions = set-RegexFlags
     $regexOptions = $regexOptions -bor $regularOptions.Options
 }
 
@@ -258,11 +329,11 @@ if ($timeout.Contains("-")) {  # Negative values will yield waiting time at prog
 
 if ($interactive) {
     $userRead = Read-Input
+    $regularOptions = set-RegexFlags
+
     $searchLines += $userRead.Search
     $replaceLines += $userRead.Replace
     $flags = $userRead.Flags
-
-    $regularOptions = apply-RegexFlags
     $regexOptions = $regexOptions -bor $regularOptions.Options
 }
 # Read text from clipboard
@@ -272,79 +343,34 @@ $clipboardUnchanged = $clipboardText
 # Write-Host $flags
 # Write-Host $regexOptions
 if ([string]::IsNullOrWhiteSpace($clipboardText)) {
-    Write-Output "No clipboard available. Nothing to do!" -ForegroundColor Magenta
+    Write-Host "No clipboard available. Nothing to do!" -ForegroundColor Magenta
     if (-not $endless) {
         return 
     }
 }
-
- # Add the provided search/replace text from CLI arguments to searcharray
-if ($searchText | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) {
-    $searchLines += $searchText  # add cli args to array
-}
-if ($replaceText) {  # Explicitly allowed to be empty (for deletion)
-    $replaceLines += $replaceText
-}
-
-# Get list of text files from each provided folder path
-$searchFolderPath = $searchFolderPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }  # Filter empty entries,
-foreach ($folder in $searchFolderPath) {
-    if (Test-Path -Path $folder) {
-        $searchFiles += Get-ChildItem -Path $folder -Filter *.txt -File | Sort-Object Name
-        # Add text files to the list
-    }
-}
-$replaceFolderPath = $replaceFolderPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } # Filter empty entries,
-foreach ($folder in $replaceFolderPath) {
-    if (Test-Path -Path $folder) {
-        $replaceFiles += Get-ChildItem -Path $folder -Filter *.txt -File | Sort-Object Name
-        # Add text files to the list
-    }
+$expressions = get-SearchnReplaceExpressions
+$searchLines = $expressions.SearchFor
+$replaceLines = $expressions.ReplaceWith
+ # Filling up entries for replacement, if too less are provided corresponding search terms will be deleted (replaced by NULL)
+while ($replaceLines.Count -lt $searchLines.Count) {  # Filling replace terms to amount of search terms (possible because replace terms are assumed empty for missing lines)
+    $replaceLines += '' # because empty lines are not recognized as lines, array will be filled with empty entries here for every empty line
 }
 
-$searchFilePath = $searchFilePath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } # For case of wrong user input, filter empty entries
-$replaceFilePath = $replaceFilePath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } # For case of wrong user input,
+# Write-Host $searchLines
+# Write-Host $replaceLines
 
-if ($wholeFile) {  # Read as whole files or linewise
-    foreach ($file in $searchFilePath) {
-        if (Test-Path -Path $file -PathType Leaf) {
-            # Read file contents and append to search/replace arrays
-            $searchContent = Get-Content -Path $file -Raw
-            $searchLines  += $searchContent  # Whole file as one entry
-        }
-    }
-    foreach ($file in $replaceFilePath) {
-        if (Test-Path -Path $file -PathType Leaf) {
-            # Read file contents and append to search/replace arrays
-            $replaceContent = Get-Content -Path $file -Raw
-            if ($null -eq $replaceContent) {
-                $replaceContent = ''
-            }
-            $replaceLines += $replaceContent  # Whole file as one entry
-        }
-    }
-} else {  # Linewise reading, lines as elements of arrays
-    foreach ($file in $replaceFilePath) {
-        if (Test-Path -Path $file -PathType Leaf) {
-            $replaceLines += @(Get-Content -Path $file)  # Urgent need of arrays: @( )
-        }
-    }
-    foreach ($file in $searchFilePath) {
-        if (Test-Path -Path $file -PathType Leaf) {
-            $searchLines += @(Get-Content -Path $file) 
-        }
-    }
-}
 
-# Main processing: Grep / Extract matches with context
 # Write-Host "Search patterns to process: " -NoNewline
 # Write-Host $searchLines
+# Write-Host $searchFolderPath
+# Write-Host $searchFilePath
+# Write-Host $searchLines
 
-if ($extractMatch -and ($searchLines -and ($searchLines | Where-Object { -not [string]::IsNullOrWhiteSpace($_.ToString()) }))) {
+# Main processing: Grep / Extract matches with context
+if ($extractMatch -and ($searchLines -and ($searchLines | Where-Object { -not [string]::IsNullOrWhiteSpace($_.ToString()) }))) {  # Only grep/extract when search strings are available
     $lines = $clipboardText -split "`n", -1
-    $writeOut = New-Object System.Text.StringBuilder
-    $newB = $B
-    $newA = $A
+    $writeOut = New-Object System.Text.StringBuilder  # StringObject for output as textfile
+
     $matchCount = 0
     $allMatches = @()
     foreach ($pattern in $searchLines) {
@@ -352,13 +378,16 @@ if ($extractMatch -and ($searchLines -and ($searchLines | Where-Object { -not [s
     }
     $matchCount = $allMatches.Count  # Array count of all matches
     $allMatches = $allMatches | Sort-Object Index  # Sorting all matches by index for ordered processing
-
     foreach ($m in $allMatches) {
+        $newB = $B  # New name provides possibility to change value without loosing the information about lines to print
+        $newA = $A  # New name provides possibility to change value without loosing the information about lines to print
         $matchMetaData = Get-StringLineInfo -Text $clipboardText -Position $m.Index -Length $m.Length
         Write-Host "Line " -NoNewline
         Write-Host "$($matchMetaData.StartLine)" -NoNewline -ForegroundColor Yellow
         Write-Host ", matched: `"" -NoNewline
-        Write-Host "$($m.Groups[0].Value)" -ForegroundColor Red -NoNewline
+        $actValue = $m.Groups[0].Value
+        $actValue = $actValue.Replace("`r","").Replace("`n","")
+        Write-Host "$actValue" -ForegroundColor Red -NoNewline
         Write-Host "`" at index " -NoNewline
         Write-Host "$($m.Index)" -ForegroundColor Cyan -NoNewline
         Write-Host " with length " -NoNewline
@@ -366,16 +395,22 @@ if ($extractMatch -and ($searchLines -and ($searchLines | Where-Object { -not [s
         Write-Host ":"
         # Write-Host "`" at index $($m.Index) with length $($m.Length):"      
         $null = $writeOut.AppendLine("Line $($matchMetaData.StartLine), matched: `"$($m.Groups[0].Value)`" at index $($m.Index) with length $($m.Length):`n")  # Append to output string
-        
+        # Write-Host "newB"
+        # Write-Host $newB
+        # Write-Host "matchMetaData.StartLine"
+        # Write-Host $matchMetaData.StartLine
         while(($matchMetaData.StartLine - $newB) -lt 1 ) {  # decrement B if out of bounds
             $newB--
         }
+        # Write-Host $newB
         while(($matchMetaData.EndLine + $newA) -gt $matchMetaData.TotalLines ) {  # decrement A if out of bounds
             $newA--
         }
         #"-" * 50
         if($newB -gt 0) {
-            $outputLines = $lines[($matchMetaData.StartLine - $newB - 1)..($matchMetaData.StartLine-1-1)]  # Slice array to yield lines before match
+            # Write-Host ($matchMetaData.StartLine - $newB)
+            # Write-Host ($matchMetaData.StartLine -1-1)
+            $outputLines = $lines[($matchMetaData.StartLine - $newB - 1)..($matchMetaData.StartLine -1-1 )]  # Slice array to yield lines before match
             $outputLines | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }  # Append and print
         }
         $lines[($matchMetaData.StartLine-1)..($matchMetaData.EndLine-1)] | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }  # Append and print match lines
@@ -398,8 +433,7 @@ if ($extractMatch -and ($searchLines -and ($searchLines | Where-Object { -not [s
         }
     }
 }
-else {  # If not grepping / extracting, do search and replace
-   
+elseif ($searchLines -and $replaceLines) {  # If not grepping / extracting, do search and replace
     # "Performing search and replace..."
 
 # Check for usability of provided search/replace lines
@@ -410,10 +444,6 @@ if ($searchLines.Count -lt $replaceLines.Count) {  # Search terms being < replac
     return 
 }
 
- # Filling up entries for replacement, if too less are provided they are assumed to be vanished (replaced by NULL)
-while ($replaceLines.Count -lt $searchLines.Count) {  # Filling replace terms to amount of search terms (possible because replace terms are assumed empty for missing lines)
-    $replaceLines += '' # because empty lines are not recognized as lines, array will be filled with empty entries here for every empty line
-}
 
 # Main processing loop: iterate search/replace lines
 for ($i = 0; $i -lt $searchLines.Count; $i++) {
@@ -433,7 +463,7 @@ for ($i = 0; $i -lt $searchLines.Count; $i++) {
 }
 
 
-if ( [String]::CompareOrdinal($clipboardUnchanged, $clipboardText) -ne 0 ){ #byte by byte comparision seems to help here - it works!
+if ( [String]::CompareOrdinal($clipboardUnchanged, $clipboardText) -ne 0 ){  # Check whether Clipboardtext has changed - byte by byte comparision seems to help here - it works!
     if ($fileOutput) { # This runs if output as file is desired, therefore needs to be called at the end
         writeFile($clipboardText)
     }
@@ -455,7 +485,7 @@ else {
 # $searchLines  = @()  # reset arrays for case of endless loop
 # $replaceLines = @()  # empty arrays
 
-check-Confirmation
+show-Confirmation
 if (-not $timeout.Contains("-")) {  # Negative values will yield waiting time at program start
     wait-Timeout
 }
