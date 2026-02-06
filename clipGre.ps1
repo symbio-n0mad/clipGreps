@@ -1,21 +1,21 @@
 param (
-    [Alias("searchFolder", "sdir", "sd")]
-    [string[]]$searchFolderPath = @(),   
-    [Alias("replaceFolder", "rdir", "rd")]          
-    [string[]]$replaceFolderPath = @(),
-    [Alias("searchFile", "sfile", "sf")]
-    [string[]]$searchFilePath = @(),    
-    [Alias("replaceFile", "rfile", "rf")]          
-    [string[]]$replaceFilePath = @(),
     [Alias("search", "find", "findText", "st", "ft")]
     [string[]]$searchText = @(),   
     [Alias("replace", "displace", "substitute", "rt")]          
     [string[]]$replaceText = @(),
+    [Alias("searchFile", "sfile", "sf")]
+    [string[]]$searchFilePath = @(),    
+    [Alias("replaceFile", "rfile", "rf")]          
+    [string[]]$replaceFilePath = @(),
+    [Alias("searchFolder", "sdir", "sd")]
+    [string[]]$searchFolderPath = @(),   
+    [Alias("replaceFolder", "rdir", "rd")]          
+    [string[]]$replaceFolderPath = @(),
     [Alias("onTheFly", "readInput", "ri", "ia")] 
     [switch]$interactive,
     [Alias("wait", "delay", "d", "sleep")] 
     [string]$timeout = "0",
-    [Alias("reOptions", "regExFlags", "modifier")] 
+    [Alias("reOptions", "regExFlags", "modifier", "ro")] 
     [string]$flags = "",
     [Alias("showHelp", "h", "hint", "usage")]          
     [switch]$Help = $false,
@@ -39,8 +39,10 @@ param (
     [switch]$persist = $false,  
     [Alias("grep", "ext", "e", "x", "extract", "g")]    
     [switch]$extractMatch,
-    [Alias("repeat", "loop", "relentless")]    
-    [switch]$endless
+    [Alias("repeat", "loop", "relentless", "8")]    
+    [switch]$endless,
+    [Alias("measTim", "measureTime", "mt", "bm")]    
+    [switch]$benchmark
 )
 
 function wait-Timeout([int]$additionalTime = 0) {
@@ -120,7 +122,7 @@ function Read-Input {
     }
 }
 
-function writeFile([string]$content) {
+function write-File([string]$content) {
   # Timestamp generation
     $timeStamp = Get-Date -Format "yyyyMMdd_HHmmss"
 
@@ -160,6 +162,7 @@ function show-Helptext() {  # self descriptive:  print help text
     Write-Host "  -B / -before              Lines of context before the match"
     Write-Host "  -C / -combined            Lines of context combined (before and after)"
     Write-Host "  -r / -RegEx               Permit use of Regular Expressions"
+    Write-Host "  -ro / -flags              Pass flags to regex engine (implicitly activates regex [-r])"
     Write-Host "  -ci / -ignoreCase         Ignore case while searching"
     Write-Host "  -ia / -interactive        Queries for (single) search and replace strings interactively"
     Write-Host ""
@@ -194,8 +197,8 @@ function set-RegexFlags() {
             }
         }
     }
-    if ($script:flags.Contains('j') -and ($script:flags.Contains('r') -or $script:flags.Contains('u') -or $script:flags.Contains('b') -or $script:flags.Contains('e') -or $script:flags.Contains('u') -or $script:flags.Contains('x'))) {
-        Write-Warning "Warning: 'b' (NonBacktracking) and 'j' (ECMAScript) options are mutually exclusive. 'b' will be ignored."
+    if ($script:flags.Contains('j') -and ($script:flags.Contains('r') -or $script:flags.Contains('u') -or $script:flags.Contains('b') -or $script:flags.Contains('e') -or $script:flags.Contains('x'))) {
+        Write-Warning "Warning:  'j' (ECMAScript) cannot be combined with 'x', 'e', 'b', 'r' or 'u'."
        
     }
     if ($script:flags.Contains('b') -and $script:flags.Contains('r')) {
@@ -317,6 +320,9 @@ if (-not $interactive) {
     $regexOptions = $regexOptions -bor $regularOptions.Options
 }
 
+if ($flags.Length -gt 0) {
+    $r = $true
+}
 
 do { # (Endless) loop start
 
@@ -429,58 +435,55 @@ if ($extractMatch -and ($searchLines -and ($searchLines | Where-Object { -not [s
         Write-Host "Count of all matches is " -NoNewline
         Write-Host " $matchCount " -ForegroundColor Green -BackgroundColor DarkRed
         if ($fileOutput) {
-            writeFile($writeOut.ToString())
+            write-File($writeOut.ToString())
         }
     }
 }
 elseif ($searchLines -and $replaceLines) {  # If not grepping / extracting, do search and replace
     # "Performing search and replace..."
-
-# Check for usability of provided search/replace lines
-if ($searchLines.Count -lt $replaceLines.Count) {  # Search terms being < replace terms is impossible
-    Write-Error "Error: Amount of search strings cannot be less than replace strings, check entries!"
-    Write-Warning "For every replacement a position needs to be specified!"
-    Read-Host -Prompt "Press enter to end program"
-    return 
-}
-
-
-# Main processing loop: iterate search/replace lines
-for ($i = 0; $i -lt $searchLines.Count; $i++) {
-    $searchContent = $searchLines[$i]
-    $replaceContent = $replaceLines[$i]
-
-    if (-not $r) { # Literal search, not regex: escape special characters
-        $searchContent = [regex]::Escape($searchContent)
+    # Check for usability of provided search/replace lines
+    if ($searchLines.Count -lt $replaceLines.Count) {  # Search terms being < replace terms is impossible
+        Write-Error "Error: Amount of search strings cannot be less than replace strings, check entries!"
+        Write-Warning "In other words: For every replacement a position needs to be specified!"
+        Read-Host -Prompt "Press enter to end program"
+        return 
     }
-    try {
-        $clipboardText = [regex]::Replace($clipboardText, $searchContent, $replaceContent, $regexOptions)
-    }
-    catch {
-        Write-Warning "Skipping invalid substitution: $searchContent - $_"
-        continue
-    }
-}
 
+    # Main processing loop: iterate search/replace lines
+    for ($i = 0; $i -lt $searchLines.Count; $i++) {  # for every entry in searchLines-array (contains search all patterns)
+        $searchContent = $searchLines[$i]
+        $replaceContent = $replaceLines[$i]
 
-if ( [String]::CompareOrdinal($clipboardUnchanged, $clipboardText) -ne 0 ){  # Check whether Clipboardtext has changed - byte by byte comparision seems to help here - it works!
-    if ($fileOutput) { # This runs if output as file is desired, therefore needs to be called at the end
-        writeFile($clipboardText)
-    }
-    else {  # Else = no file output? -> then set clipboard content
-        if ([string]::IsNullOrEmpty($clipboardText)) {
-            $null | Set-Clipboard  # explict deletion because Set-Clipboard does not accept $null-arrays/strings
-            Write-Host 'Clipboard is empty now.' -ForegroundColor Blue
+        if (-not $r) { # Literal search, not regex: escape special characters
+            $searchContent = [regex]::Escape($searchContent)
         }
-        else {
-            Set-Clipboard -Value $clipboardText
+        try {
+            $clipboardText = [regex]::Replace($clipboardText, $searchContent, $replaceContent, $regexOptions)
         }
-        Write-Host 'Clipboard successfully modified.' -ForegroundColor Green
+        catch {
+            Write-Warning "Skipping invalid substitution: $searchContent - $_"
+            continue
+        }
     }
-}
-else {
-    Write-Host 'Clipboard text has not changed.' -ForegroundColor Yellow
-}
+
+    if ( [String]::CompareOrdinal($clipboardUnchanged, $clipboardText) -ne 0 ){  # Check whether Clipboardtext has changed - byte by byte comparision seems to help here - it works!
+        if ($fileOutput) { # This runs if output as file is desired, therefore needs to be called at the end
+            write-File($clipboardText)
+        }
+        else {  # Else = no file output? -> then set clipboard content
+            if ([string]::IsNullOrEmpty($clipboardText)) {
+                $null | Set-Clipboard  # explict deletion because Set-Clipboard does not accept $null-arrays/strings
+                Write-Host 'Clipboard is empty now.' -ForegroundColor Blue
+            }
+            else {
+                Set-Clipboard -Value $clipboardText  # Modified text back to the clipboard!
+            }
+            Write-Host 'Clipboard successfully modified.' -ForegroundColor Green
+        }
+    }
+    else {
+        Write-Host 'Clipboard text has not changed.' -ForegroundColor Yellow
+    }
 }
 # $searchLines  = @()  # reset arrays for case of endless loop
 # $replaceLines = @()  # empty arrays
@@ -491,4 +494,3 @@ if (-not $timeout.Contains("-")) {  # Negative values will yield waiting time at
 }
 
 } until (-not $endless)
-# 
