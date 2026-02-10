@@ -107,12 +107,14 @@ function Read-Input {
         } else {
             $flags = $Script:flags
         }
-        
         $search  = Read-Host "Please enter search text (.NET flavor regex syntax allowed) "
     } else {
         $search  = Read-Host "Please enter search text"
     }
     if (-not $extractMatch){
+        if ($r) {
+            Write-Host "Groups may be referenced by `$1, `$2 etc."
+        }
         $replace = Read-Host "Please enter replacement text"
     }
     return [PSCustomObject]@{
@@ -362,9 +364,6 @@ while ($replaceLines.Count -lt $searchLines.Count) {  # Filling replace terms to
     $replaceLines += '' # because empty lines are not recognized as lines, array will be filled with empty entries here for every empty line
 }
 
-# Write-Host $searchLines
-# Write-Host $replaceLines
-
 
 # Write-Host "Search patterns to process: " -NoNewline
 # Write-Host $searchLines
@@ -439,7 +438,8 @@ if ($extractMatch -and ($searchLines -and ($searchLines | Where-Object { -not [s
         }
     }
 }
-elseif ($searchLines -and $replaceLines) {  # If not grepping / extracting, do search and replace
+elseif ($searchLines.Count -gt 0 -and $replaceLines.Count -gt 0) {  # If not grepping / extracting, do search and replace
+    # Write-Host "entered replacement section"
     # "Performing search and replace..."
     # Check for usability of provided search/replace lines
     if ($searchLines.Count -lt $replaceLines.Count) {  # Search terms being < replace terms is impossible
