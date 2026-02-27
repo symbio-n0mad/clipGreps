@@ -47,7 +47,7 @@ param (
     [int]$loop = 1,
     [Alias("measTim", "measureTime", "mt", "bm")]    
     [switch]$benchmark = $false,
-    [Alias("sub", "substitution", "replacingOn")]    
+    [Alias("sub", "substitution", "s")]    
     [switch]$substitute
 )
 
@@ -147,9 +147,9 @@ function write-File([string]$content) {
         $fileName = "Output_$nameStamp.txt"
     } else {
         # Name provided? ok then use it!
-        $extension = [System.IO.Path]::GetExtension($fileName) 
+        # $extension = [System.IO.Path]::GetExtension($fileName) 
         $baseName = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
-        $fileName = "${baseName}_$nameStamp$extension"
+        $fileName = "${baseName}_$nameStamp.txt"
     }
 
     # Save file = 
@@ -176,6 +176,7 @@ function show-Helptext() {  # self descriptive:  print help text
     Write-Host "  -rt / -replaceText        Replacement string (or comma separated string list)"
     Write-Host ""
     Write-Host "  -x / -grep                Search and extract patterns"
+    Write-Host "  -x / -substitute                Search and replace patterns"
     Write-Host "  -A / -after               Lines of context after the match"
     Write-Host "  -B / -before              Lines of context before the match"
     Write-Host "  -C / -combined            Lines of context combined (before and after)"
@@ -301,6 +302,7 @@ function get-SearchnReplaceExpressions() {
 
 
 #PROGRAM STARTS HERE
+$global:ProgramTimer = [System.Diagnostics.Stopwatch]::StartNew()
 if ($endless -and $fileOutput) {
         Write-Warning "Endless loop and file output shouldn't be combined, be sure you know what you're doing!"
         [void][System.Console]::ReadLine()
@@ -321,7 +323,7 @@ if (
     return 
 }
 
-$global:ProgramTimer = [System.Diagnostics.Stopwatch]::StartNew()
+
 # $C is $A and $B combined, to reduce variable amount we sum them up here  # used for context w grepping
 $A += $C
 $B += $C
@@ -417,12 +419,20 @@ do { # (Endless) loop start
             $writeOut = New-Object System.Text.StringBuilder  # StringObject for output as textfile
 
             $matchCount = 0
-            $allMatches = @()
+            # $allMatches = @()
+            $allMatches = [System.Collections.Generic.List[System.Text.RegularExpressions.Match]]::new()
 
             $sw = [System.Diagnostics.Stopwatch]::StartNew()
             foreach ($pattern in $searchLines) {
-                $allMatches += [System.Text.RegularExpressions.Regex]::Matches($clipboardText, $pattern, $regexOptions)  # Adding all matches to one array
+                $mc = [System.Text.RegularExpressions.Regex]::Matches($clipboardText, $pattern, $regexOptions)
+                foreach ($m in $mc) {
+                    $allMatches.Add($m)
+                }
             }
+
+            # foreach ($pattern in $searchLines) {
+            #     $allMatches += [System.Text.RegularExpressions.Regex]::Matches($clipboardText, $pattern, $regexOptions)  # Adding all matches to one array
+            # }
             $sw.Stop()
             $grepElapsDesc = "Grepping took: $($sw.Elapsed.TotalMilliseconds) ms"
 
@@ -507,7 +517,7 @@ do { # (Endless) loop start
             }
         }
 
-        if ($substitute) {  # If not grepping / extracting, do search and replace
+        if ($substitute -or $delete) {  # If not grepping / extracting, do search and replace
             # Write-Host "entered replacement section"
             # "Performing search and replace..."
             # Check for usability of provided search/replace lines
@@ -528,7 +538,7 @@ do { # (Endless) loop start
                     $searchContent = [regex]::Escape($searchContent)
                 }
                 try {
-                    $clipboardText = [regex]::Replace($clipboardText, $searchContent, $replaceContent, $regexOptions)
+                    $clipboardText = [regex]::Replace($clipboardText, $searchContent, [string]$replaceContent, $regexOptions)
                 }
                 catch {
                     Write-Warning "Skipping invalid substitution: $searchContent - $_"
