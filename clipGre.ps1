@@ -48,7 +48,9 @@ param (
     [Alias("measTim", "measureTime", "mt", "bm")]    
     [switch]$benchmark = $false,
     [Alias("sub", "substitution", "s")]    
-    [switch]$substitute
+    [switch]$substitute,
+    #[Alias("countMatches", "c", "matchAmount", "countRegEx")]    
+    [switch]$numba
 )
 
 function wait-Timeout([int]$additionalTime = 0) {
@@ -103,8 +105,163 @@ function Get-StringLineInfo {
         TotalLines    = $totalLines
     }
 }
+function Get-CharacterMap {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Text,
 
+        # Optional: Sort order: Count (desc) or Char (asc)
+        [ValidateSet('Count','Char')]
+        [string]$SortBy = 'Count',
 
+        # Optional: Render whitespace visibly (␠, ␉, ␍, ␊)
+        [switch]$ShowWhitespace
+    )
+
+    # Count storage
+    $counts = @{}
+
+    # Enumerate Unicode text elements (graphemes)
+    $enum = [System.Globalization.StringInfo]::GetTextElementEnumerator($Text)
+    while ($enum.MoveNext()) {
+        $g = [string]$enum.Current
+        if ($counts.ContainsKey($g)) {
+            $counts[$g] += 1
+        } else {
+            $counts[$g] = 1
+        }
+    }
+
+    # Total elements
+    $total = 0
+    foreach ($v in $counts.Values) { $total += $v }
+
+    # Sorting
+    $keys =
+        if ($SortBy -eq 'Char') {
+            $counts.Keys | Sort-Object
+        } else {
+            # Count-desc, then Char
+            $counts.GetEnumerator() |
+                Sort-Object @{e = 'Value'; Descending = $true}, @{e = 'Key'} |
+                ForEach-Object { $_.Key }
+        }
+
+    # Header
+    Write-Host ("Character-Map (total: {0})" -f $total) -ForegroundColor Cyan
+    $header = "{0,-12}  {1,5}  {2,7}  {3}" -f "Char","Count","Percent","Codepoints"
+    Write-Host $header
+    Write-Host ('-' * $header.Length)
+
+    foreach ($k in $keys) {
+        # Build UTF-32 codepoint list (handles surrogate pairs)
+        $cpStrings = New-Object 'System.Collections.Generic.List[string]'
+        $i = 0
+        while ($i -lt $k.Length) {
+            if ($i -lt $k.Length - 1 -and [char]::IsSurrogatePair($k[$i], $k[$i+1])) {
+                $cp = [char]::ConvertToUtf32($k[$i], $k[$i+1])
+                $i += 2
+            } else {
+                $cp = [int][char]$k[$i]
+                $i += 1
+            }
+            $cpStrings.Add('U+' + $cp.ToString('X'))
+        }
+
+        # Optional: show whitespace visibly
+        $display =
+            if ($ShowWhitespace) {
+                $k -replace ' ', '␠' -replace "`t", '␉' -replace "`r", '␍' -replace "`n", '␊'
+            } else {
+                $k
+            }
+
+        # Percentage with 2 decimals; locale-aware (e.g., 12,34 % in DE)
+        $pct = if ($total -gt 0) { (100.0 * $counts[$k] / $total) } else { 0.0 }
+
+        "{0,-12}  {1,5}  {2,6:N2} %  {3}" -f $display, $counts[$k], $pct, ($cpStrings -join ', ')
+    }
+}
+
+function Get-TextMetricsPs5 {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Text
+    )
+
+    # Count UTF-8 and UTF-16 bytes
+    $utf8Bytes  = [System.Text.Encoding]::UTF8.GetByteCount($Text)
+    $utf16Bytes = [System.Text.Encoding]::Unicode.GetByteCount($Text)
+
+    # Count UTF-16 code units (.NET char count)
+    $charUnits = $Text.Length
+
+    # Count Unicode code points (scalar values) by walking surrogate pairs
+    function Get-CodePointCount {
+        param([string]$S)
+        $count = 0
+        $i = 0
+        while ($i -lt $S.Length) {
+            $ch = $S[$i]
+            $code = [int]$ch
+
+            # High surrogate range: D800–DBFF
+            if ($code -ge 0xD800 -and $code -le 0xDBFF) {
+                if ($i + 1 -lt $S.Length) {
+                    $next = [int]$S[$i + 1]
+                    # Low surrogate range: DC00–DFFF
+                    if ($next -ge 0xDC00 -and $next -le 0xDFFF) {
+                        # Valid surrogate pair -> one code point
+                        $count += 1
+                        $i += 2
+                        continue
+                    }
+                }
+                # Unpaired high surrogate -> count as one code point
+                $count += 1
+                $i += 1
+                continue
+            }
+
+            # Low surrogate without preceding high surrogate -> count as one code point
+            if ($code -ge 0xDC00 -and $code -le 0xDFFF) {
+                $count += 1
+                $i += 1
+                continue
+            }
+
+            # BMP char -> one code point
+            $count += 1
+            $i += 1
+        }
+        return $count
+    }
+
+    $codePoints = Get-CodePointCount -S $Text
+
+    # Grapheme clusters (user-perceived characters)
+    # StringInfo.ParseCombiningCharacters returns start indices of text elements
+    $graphemes = [System.Globalization.StringInfo]::ParseCombiningCharacters($Text).Count
+
+    # ASCII-only helper metrics
+    $asciiChars = 0
+    foreach ($c in $Text.ToCharArray()) {
+        if ([int]$c -le 0x7F) { $asciiChars++ }
+    }
+
+    # Simple multibyte detection in UTF-8: any non-ASCII will push UTF-8 bytes above ASCII-char count
+    $containsNonAscii = $utf8Bytes -gt $asciiChars
+
+    [pscustomobject]@{
+        UTF8_Bytes          = $utf8Bytes
+        UTF16_Bytes         = $utf16Bytes
+        CharUnits           = $charUnits
+        CodePoints          = $codePoints
+        Graphemes           = $graphemes
+        ASCII_CharCount     = $asciiChars
+        Contains_NonASCII   = $containsNonAscii
+    }
+}
 
 function Read-Input {
     # # Present a clean A/B choice: "Deletion/Substitution" vs "Grep/Text search"
@@ -319,6 +476,8 @@ function get-SearchnReplaceExpressions() {
 }
 
 
+
+
 #PROGRAM STARTS HERE
 $global:ProgramTimer = [System.Diagnostics.Stopwatch]::StartNew()
 if ($endless -and $fileOutput) {
@@ -332,7 +491,8 @@ if (
         (-not $searchFolderPath -or $searchFolderPath.Count -eq 0) -and    # No folder         and
         (-not $searchFilePath -or $searchFilePath.Count -eq 0) -and      # No file           and
         (-not $searchText -or $searchText.Count -eq 0) -and  # No CLI args
-        (-not $interactive)  # No interactive mode 
+        (-not $interactive) -and  # No interactive mode 
+        (-not $numba)  #
     )
 ) {
     show-Helptext
@@ -435,7 +595,7 @@ do { # (Endless) loop start
         # Write-Host $searchLines
 
         # Main processing: Grep / Extract matches with context
-        if ($extractMatch -or (-not $delete -and -not ($replaceLines | Where-Object { $_ -ne $null -and $_ -ne '' }))) {  # test for grep flag
+        if ($extractMatch -or (-not $delete -and -not ($replaceLines | Where-Object { $_ -ne $null -and $_ -ne '' }) -and ($searchLines | Where-Object { $_ -ne $null -and $_ -ne '' }))) {  # test for grep flag
             $lines = $clipboardText -split "`n", -1
             $writeOut = New-Object System.Text.StringBuilder  # StringObject for output as textfile
 
@@ -538,7 +698,7 @@ do { # (Endless) loop start
             }
         }
 
-        if ($substitute -or $delete -or ($replaceLines | Where-Object { $_ -ne $null -and $_ -ne '' })) {  # If not grepping / extracting, do search and replace
+        if ($substitute -or $delete -or (($replaceLines | Where-Object { $_ -ne $null -and $_ -ne '' }) -and ($searchLines | Where-Object { $_ -ne $null -and $_ -ne '' }))) {  # If not grepping / extracting, do search and replace
             # Write-Host "entered replacement section"
             # "Performing search and replace..."
             # Check for usability of provided search/replace lines
@@ -602,6 +762,65 @@ do { # (Endless) loop start
                 Write-Host ""
             }
         }
+        if ($numba) {
+            Write-Host ""
+            "-" * 25
+            $metrics = Get-TextMetricsPs5 -Text $clipboardUnchanged
+            
+            Write-Host "UTF-8 Bytes        : " -NoNewline -ForegroundColor Gray
+            Write-Host $metrics.UTF8_Bytes        -ForegroundColor Yellow
+
+            Write-Host "UTF-16 Bytes       : " -NoNewline -ForegroundColor Gray
+            Write-Host $metrics.UTF16_Bytes       -ForegroundColor Cyan
+
+            Write-Host "UTF-16 Code Units  : " -NoNewline -ForegroundColor Gray
+            Write-Host $metrics.CharUnits         -ForegroundColor Green
+
+            Write-Host "Unicode CodePoints : " -NoNewline -ForegroundColor Gray
+            Write-Host $metrics.CodePoints        -ForegroundColor Magenta
+
+            Write-Host "Grapheme Clusters  : " -NoNewline -ForegroundColor Gray
+            Write-Host $metrics.Graphemes         -ForegroundColor Blue
+
+            Write-Host "ASCII Characters   : " -NoNewline -ForegroundColor Gray
+            Write-Host $metrics.ASCII_CharCount   -ForegroundColor DarkYellow
+
+            Write-Host "Contains Non-ASCII : " -NoNewline -ForegroundColor Gray
+            Write-Host $metrics.Contains_NonASCII -ForegroundColor Red
+            "-" * 25
+            Write-Host ""
+            Get-CharacterMap -Text $clipboardUnchanged
+            Write-Host ""
+            
+            $mc = [System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, ".", [System.Text.RegularExpressions.RegexOptions]::Singleline)
+            Write-Host "Character count (dot-matches-all, regex: `".`"): " -NoNewline 
+            Write-Host $mc.Count -ForegroundColor Magenta
+
+            
+            $mc = [System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\b\w+\b", [System.Text.RegularExpressions.RegexOptions]::None)
+            Write-Host "Word count (no options, regex: `"\b\w+\b`"): " -NoNewline 
+            Write-Host $mc.Count -ForegroundColor DarkMagenta
+
+            #field count
+            $mc = [System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\s*\S+\s*", [System.Text.RegularExpressions.RegexOptions]::None)
+            Write-Host "Space separated fields, like words (no options, regex: `"\s*\S+\s*`"): " -NoNewline 
+            Write-Host $mc.Count -ForegroundColor Magenta
+
+            $mc = [System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "^", [System.Text.RegularExpressions.RegexOptions]::Multiline)
+            Write-Host "Line count (multiline, regex: `"^`"): " -NoNewline 
+            Write-Host $mc.Count -ForegroundColor DarkBlue
+
+            $mc = $null # reset variable for later use, previous values are not needed anymore
+            foreach ($pattern in $searchLines) {
+                $mc += [System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, $pattern, $regexOptions)
+            }
+            Write-Host "You provided " -NoNewline
+            Write-Host $searchLines.Count -NoNewline -ForegroundColor Yellow
+            Write-Host " search pattern(s). " 
+            Write-Host "Your pattern(s) with your option(s) matched: " -NoNewline 
+            Write-Host $mc.Count -ForegroundColor Red            
+        }
+
         # $searchLines  = @()  # reset arrays for case of endless loop
         # $replaceLines = @()  # empty arrays
         if ($benchmark) {
