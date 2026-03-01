@@ -107,6 +107,16 @@ function Get-StringLineInfo {
 
 
 function Read-Input {
+    # # Present a clean A/B choice: "Deletion/Substitution" vs "Grep/Text search"
+    $caption = 'Empty replacement string detected'
+    $message = 'Do you want a deletion/substitution or a grep (text search)?'
+    $choices = @(
+        [System.Management.Automation.Host.ChoiceDescription]::new('&Deletion', 'Perform deletion/substitution')
+        [System.Management.Automation.Host.ChoiceDescription]::new('&Grep', 'Run a grep-like text search')
+    )
+    $default = 1  # 0 = Substitution, 1 = Grep
+
+
     $flags = ""
     $replace = ""
     $search = ""
@@ -120,12 +130,20 @@ function Read-Input {
     } else {
         $search  = Read-Host "Please enter search text"
     }
-    if (-not $extractMatch){
+    #if (-not $extractMatch -and -not $delete) {  # Replacement only makes sense if not extracting or deleting
         if ($r) {
             Write-Host "Groups may be referenced by `$1, `$2 etc."
         }
         $replace = Read-Host "Please enter replacement text"
+    if ($replace -eq "") {
+
+        $selection = $Host.UI.PromptForChoice($caption, $message, $choices, $default)
+        switch ($selection) {
+            0 { $Script:delete = $true }  # 'User selected: Substitution'
+            1 { $replace = $null }  # 'User selected: Grep'
+        }
     }
+    #}
     return [PSCustomObject]@{
         Flags  = $flags
         Search  = $search
@@ -370,7 +388,7 @@ do { # (Endless) loop start
         }
         # Read text from clipboard
         $clipboardText = Get-Clipboard -Raw
-        $clipboardUnchanged = $clipboardText
+        $clipboardUnchanged = $clipboardText  # for later comparison to check whether changes were made
         # Write-Host "Current regex flags: " -NoNewline
         # Write-Host $flags
         # Write-Host $regexOptions
@@ -384,8 +402,10 @@ do { # (Endless) loop start
             }
         }
         $expressions = get-SearchnReplaceExpressions
-        $searchLines = $expressions.SearchFor
-        $replaceLines = $expressions.ReplaceWith
+        $searchLines += $expressions.SearchFor
+        $replaceLines += $expressions.ReplaceWith
+        # Write-Host "Number of search lines: $($searchLines.Count)"
+        # Write-Host "Number of replace lines: $($replaceLines.Count)"
         # Filling up entries for replacement, if too less are provided corresponding search terms will be deleted (replaced by NULL)
         while ($replaceLines.Count -lt $searchLines.Count) {  # Filling replace terms to amount of search terms (possible because replace terms are assumed empty for missing lines)
             $replaceLines += '' # because empty lines are not recognized as lines, array will be filled with empty entries here for every empty line
@@ -396,10 +416,11 @@ do { # (Endless) loop start
             }
         }
         if(-not ($searchLines -and ($searchLines | Where-Object { -not [string]::IsNullOrWhiteSpace($_.ToString()) }))){
-            Write-Warning "Working with empty search terms seems impossible!"
-            if (-not $endless) {
-                return 
-            }
+            Write-Warning "Working with empty search terms seems difficult!"
+            Write-Host "Beware of the output!" -ForegroundColor Red
+            # if (-not $endless) {
+            #     return 
+            # }
         }
         if ($loop -gt 1 ) {
             Write-Host "-----------" -ForegroundColor DarkCyan
@@ -414,7 +435,7 @@ do { # (Endless) loop start
         # Write-Host $searchLines
 
         # Main processing: Grep / Extract matches with context
-        if ($extractMatch) {  # test for grep flag
+        if ($extractMatch -or (-not $delete -and -not ($replaceLines | Where-Object { $_ -ne $null -and $_ -ne '' }))) {  # test for grep flag
             $lines = $clipboardText -split "`n", -1
             $writeOut = New-Object System.Text.StringBuilder  # StringObject for output as textfile
 
@@ -517,7 +538,7 @@ do { # (Endless) loop start
             }
         }
 
-        if ($substitute -or $delete) {  # If not grepping / extracting, do search and replace
+        if ($substitute -or $delete -or ($replaceLines | Where-Object { $_ -ne $null -and $_ -ne '' })) {  # If not grepping / extracting, do search and replace
             # Write-Host "entered replacement section"
             # "Performing search and replace..."
             # Check for usability of provided search/replace lines
