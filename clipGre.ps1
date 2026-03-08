@@ -21,7 +21,7 @@ param (
     [switch]$Help = $false,
     [Alias("caseInsensitive", "ignoreCase", "ic", "noCase")]          
     [switch]$ci = $false,
-    [Alias("toFile", "f", "save", "write")]          
+    [Alias("toFile", "w", "save", "write")]          
     [switch]$fileOutput = $false,
     [Alias("saveAs", "o", "out")]
     [string]$fileName = "",  
@@ -33,11 +33,11 @@ param (
     [int16]$B = 0,
     [Alias("context", "combined")]          
     [int16]$C = 0,
-    [Alias("verbose", "wholeTextFile", "singleFile", "w")]          
+    [Alias("fullFile", "wholeTextFile", "singleFile", "f")]          
     [switch]$wholeFile = $false,  
     [Alias("termOpen", "stay", "windowPersist", "confirm", "p")]
     [switch]$persist = $false,  
-    [Alias("grep", "ext", "e", "x", "extract", "g")]    
+    [Alias("grep", "filter", "x", "extract", "g")]    
     [switch]$extractMatch,
     [Alias("d", "del", "remove")]    
     [switch]$delete,
@@ -45,12 +45,14 @@ param (
     [switch]$endless,
     [Alias("repeat", "again", "l")]    
     [int]$loop = 1,
-    [Alias("measTim", "measureTime", "mt", "bm")]    
+    [Alias("measTim", "measureTime", "measure", "m", "bm")]
     [switch]$benchmark = $false,
     [Alias("sub", "substitution", "s")]    
     [switch]$substitute,
-    #[Alias("countMatches", "c", "matchAmount", "countRegEx")]    
-    [switch]$numba
+    [Alias("countMatches", "statistics", "n")]    
+    [switch]$stats,
+    [Alias("switch", "rev", "exchange", "e")]    
+    [switch]$revert
 )
 
 function wait-Timeout([int]$additionalTime = 0) {
@@ -264,45 +266,118 @@ function Get-TextMetricsPs5 {
 }
 
 function Read-Input {
-    # # Present a clean A/B choice: "Deletion/Substitution" vs "Grep/Text search"
-    $caption = 'Empty replacement string detected'
-    $message = 'Do you want a deletion/substitution or a grep (text search)?'
-    $choices = @(
-        [System.Management.Automation.Host.ChoiceDescription]::new('&Deletion', 'Perform deletion/substitution')
-        [System.Management.Automation.Host.ChoiceDescription]::new('&Grep', 'Run a grep-like text search')
-    )
-    $default = 1  # 0 = Substitution, 1 = Grep
+    <#
+        Purpose:
+          Interactive input reader that decides between Substitution, Grep (text filter), or Deletion,
+          and optionally enables regex (with or without flags). Returns a PSCustomObject
+          with Flags/Search/Replace, keeping the existing contract.
 
+        Notes:
+          - All menus, variables, and comments are in English (as requested).
+          - Operation modes are treated as mutually exclusive.
+          - For Grep and Deletion, Replace will be $null.
+          - For Substitution with regex, capture groups can be referenced via `$1, `$2, etc.
+    #>
 
-    $flags = ""
-    $replace = ""
+    # ---- Normalize script-scoped switches and flags ----
+    # if ($null -eq $Script:extractMatch) { $Script:extractMatch = $false }
+    # if ($null -eq $Script:substitute)   { $Script:substitute   = $false }
+    # if ($null -eq $Script:delete)       { $Script:delete       = $false }
+    # if ($null -eq $Script:flags)        { $Script:flags        = ""     }
+
+    # Map external shorthand options to script switches if they exist
+    # (Safe if variables are undefined; they evaluate to $null)
+    # if ($grep)       { $Script:extractMatch = [bool]$grep }
+    # if ($substitute) { $Script:substitute   = [bool]$substitute }
+    # if ($delete)     { $Script:delete       = [bool]$delete }
+
+    # ---- If no operation has been selected, show a 3-way operation menu ----
+    if (-not $Script:extractMatch -and -not $Script:substitute -and -not $Script:delete) {
+        $opCaption = 'Operation selection'
+        $opMessage = 'Choose what you want to do:'
+        $opChoices = @(
+            [System.Management.Automation.Host.ChoiceDescription]::new('&Substitution', 'Perform a substitution')
+            [System.Management.Automation.Host.ChoiceDescription]::new('&Grep (text filter)', 'Filter lines by a regex or plain text')
+            [System.Management.Automation.Host.ChoiceDescription]::new('&Deletion', 'Delete matches (no replacement)')
+        )
+        $opDefault = 0
+        $op = $Host.UI.PromptForChoice($opCaption, $opMessage, $opChoices, $opDefault)
+
+        switch ($op) {
+            0 { # Substitution
+                $Script:substitute   = $true
+                $Script:extractMatch = $false
+                $Script:delete       = $false
+            }
+            1 { # Grep (text filter)
+                $Script:extractMatch = $true
+                $Script:substitute   = $false
+                $Script:delete       = $false
+            }
+            2 { # Deletion
+                $Script:delete       = $true
+                $Script:substitute   = $false
+                $Script:extractMatch = $false
+            }
+        }
+    }
+
+    # ---- Regex mode selection (only if \$Script:r is not already true) ----
+    if (-not $Script:r) {
+        $rxCaption = 'Regular expression'
+        $rxMessage = 'Enable regex for the input?'
+        $rxChoices = @(
+            [System.Management.Automation.Host.ChoiceDescription]::new('&Literal Text', 'Use plain text (literal search)')
+            [System.Management.Automation.Host.ChoiceDescription]::new('&Regex without flags', 'Enable regex without flags')
+            [System.Management.Automation.Host.ChoiceDescription]::new('Regex &with flags', 'Enable regex and enter flags')
+        )
+        $rxDefault = 0
+        $rx = $Host.UI.PromptForChoice($rxCaption, $rxMessage, $rxChoices, $rxDefault)
+
+        switch ($rx) {
+            0 {
+                $Script:r = $false
+                $Script:flags = ""
+            }
+            1 {
+                $Script:r = $true
+                $Script:flags = ""
+            }
+            2 {
+                $Script:r = $true
+                $Script:flags = Read-Host "Enter regex flags (e.g., 'i' ignore case, 'm' multiline; leave empty for none)"
+                if ($null -eq $Script:flags) { $Script:flags = "" }
+            }
+        }
+    }
+    elseif ($Script:r -and ($Script:flags -eq "")) {
+        # Backward-compatible: if regex is already enabled but no flags were provided, allow entering flags now.
+        $maybeFlags = Read-Host "Enter regex flags (e.g., 'i' ignore case, 'm' multiline; leave empty for none)"
+        if ($null -ne $maybeFlags) { $Script:flags = $maybeFlags }
+    }
+
+    # ---- Read search text ----
     $search = ""
-    if ($r) {
-        if ($Script:flags -eq "") {
-            $flags = Read-Host "Please enter regex flags (e.g. 'i' for ignore case, 'm' for multiline, leave empty for none) "
-        } else {
-            $flags = $Script:flags
-        }
-        $search  = Read-Host "Please enter search text (.NET flavor regex syntax allowed) "
+    if ($Script:r) {
+        $search = Read-Host "Please enter search text (.NET regex syntax allowed)"
     } else {
-        $search  = Read-Host "Please enter search text"
+        $search = Read-Host "Please enter search text"
     }
-    #if (-not $extractMatch -and -not $delete) {  # Replacement only makes sense if not extracting or deleting
-        if ($r) {
-            Write-Host "Groups may be referenced by `$1, `$2 etc."
-        }
-        $replace = Read-Host "Please enter replacement text"
-    if ($replace -eq "") {
 
-        $selection = $Host.UI.PromptForChoice($caption, $message, $choices, $default)
-        switch ($selection) {
-            0 { $Script:delete = $true }  # 'User selected: Substitution'
-            1 { $replace = $null }  # 'User selected: Grep'
+    # ---- Read replacement when applicable ----
+    # For Grep and Deletion, replacement is not applicable -> $null
+    $replace = ''
+    if (-not $Script:delete -and -not $Script:extractMatch) {
+        if ($Script:r) {
+            Write-Host "You can reference capture groups via `$1, `$2, etc."
         }
+        $replace = Read-Host "Please enter replacement text (empty = gone)"
     }
-    #}
+
+    # ---- Prepare return ----
+    $flags = $Script:flags
     return [PSCustomObject]@{
-        Flags  = $flags
+        Flags   = $flags
         Search  = $search
         Replace = $replace
     }
@@ -484,21 +559,32 @@ if ($endless -and $fileOutput) {
         Write-Warning "Endless loop and file output shouldn't be combined, be sure you know what you're doing!"
         [void][System.Console]::ReadLine()
 }
+if ($revert -and ($r -or $delete)) {
+    Write-Warning "Only literal replacements (no regexes or deletions) can be meaningfully reverted, be sure you know what you're doing!"
+}
 # Show help text if necessary, then exit
 if (
-    $Help.IsPresent -or  # Help flag provided or
-    (
-        (-not $searchFolderPath -or $searchFolderPath.Count -eq 0) -and    # No folder         and
-        (-not $searchFilePath -or $searchFilePath.Count -eq 0) -and      # No file           and
-        (-not $searchText -or $searchText.Count -eq 0) -and  # No CLI args
-        (-not $interactive) -and  # No interactive mode 
-        (-not $numba)  #
-    )
+    $Help.IsPresent# -or  # Help flag provided or
+    # (
+    #     (-not $searchFolderPath -or $searchFolderPath.Count -eq 0) -and    # No folder         and
+    #     (-not $searchFilePath -or $searchFilePath.Count -eq 0) -and      # No file           and
+    #     (-not $searchText -or $searchText.Count -eq 0) -and  # No CLI args
+    #     (-not $interactive) -and  # No interactive mode 
+    #     (-not $stats)  #
+    # )
 ) {
     show-Helptext
     show-Confirmation
     wait-Timeout(750)
     return 
+}
+if (
+    -not $interactive -and
+    (-not $searchFolderPath -or $searchFolderPath.Count -eq 0) -and    # No folder         and
+    (-not $searchFilePath -or $searchFilePath.Count -eq 0) -and      # No file           and
+    (-not $searchText -or $searchText.Count -eq 0)  # No CLI args
+) {
+    $interactive = $true
 }
 
 
@@ -506,13 +592,13 @@ if (
 $A += $C
 $B += $C
 $runNr = 0
-if($loop -lt 1){$loop = 1} #avoid empty endless loop in case of wrong user input
+if ($loop -lt 1) {$loop = 1} #avoid empty endless loop in case of wrong user input
 # $searchFiles = @()  # initialize arrays
 # $replaceFiles = @()  # empty arrays
 
 
 
-if($ci) {
+if ($ci) {
     $regexOptions = [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
 } else {
     $regexOptions = [System.Text.RegularExpressions.RegexOptions]::None
@@ -523,9 +609,7 @@ if (-not $interactive) {
     $regexOptions = $regexOptions -bor $regularOptions.Options
 }
 
-if ($flags.Length -gt 0) {  # Provided flags indicate intended usage of regex
-    $r = $true
-}
+if ($flags.Length -gt 0) {$r = $true}  # Provided flags indicate intended usage of regex
 
 
 do { # (Endless) loop start
@@ -575,12 +659,12 @@ do { # (Endless) loop start
                 $replaceLines = ''
             }
         }
-        if(-not ($searchLines -and ($searchLines | Where-Object { -not [string]::IsNullOrWhiteSpace($_.ToString()) }))){
-            Write-Warning "Working with empty search terms seems difficult!"
-            Write-Host "Beware of the output!" -ForegroundColor Red
-            # if (-not $endless) {
-            #     return 
-            # }
+        # if(-not ($searchLines -and ($searchLines | Where-Object { -not [string]::IsNullOrWhiteSpace($_.ToString()) }))){
+        #     Write-Warning "Working with empty search terms seems difficult!"
+        #     Write-Host "Beware of the output!" -ForegroundColor Red
+        # }
+        if ($revert) { 
+            $searchLines, $replaceLines = $replaceLines, $searchLines  # Swap search and replace lines
         }
         if ($loop -gt 1 ) {
             Write-Host "-----------" -ForegroundColor DarkCyan
@@ -605,6 +689,9 @@ do { # (Endless) loop start
 
             $sw = [System.Diagnostics.Stopwatch]::StartNew()
             foreach ($pattern in $searchLines) {
+                if (-not $r) { # Literal search, not regex: escape special characters
+                    $pattern = [regex]::Escape($pattern)
+                }
                 $mc = [System.Text.RegularExpressions.Regex]::Matches($clipboardText, $pattern, $regexOptions)
                 foreach ($m in $mc) {
                     $allMatches.Add($m)
@@ -762,7 +849,7 @@ do { # (Endless) loop start
                 Write-Host ""
             }
         }
-        if ($numba) {
+        if ($stats) {
             Write-Host ""
             "-" * 25
             $metrics = Get-TextMetricsPs5 -Text $clipboardUnchanged
@@ -791,38 +878,71 @@ do { # (Endless) loop start
             Write-Host ""
             Get-CharacterMap -Text $clipboardUnchanged
             Write-Host ""
-            
-            $mc = [System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, ".", [System.Text.RegularExpressions.RegexOptions]::Singleline)
+            # Character count
             Write-Host "Character count (dot-matches-all, regex: `".`"): " -NoNewline 
-            Write-Host $mc.Count -ForegroundColor Magenta
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, ".", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor Magenta
+            # digit count
+            Write-Host "Digit count (regex: `"\d`"): " -NoNewline 
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\d", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta
+            # currency symbols count
+            Write-Host "Currency symbols count (regex: `"\p{Sc}`"): " -NoNewline 
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\p{Sc}", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta    
+            # math symbols count
+            Write-Host "Math symbols count (regex: `"\p{Sm}`"): " -NoNewline 
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\p{Sm}", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta         
+            # Integer-like numbers count, optional sign
+            Write-Host "Integer-like numbers count (regex: `"[-+]?\d+`"): " -NoNewline 
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "[-+]?\d+", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor Magenta
+            # Integer-like numbers unicode count, optional sign
+            Write-Host "Integer-like unicode count (regex: `"(?<![\p{L}\p{M}])[-+]?\d+(?![\p{L}\p{M}])`"): " -NoNewline 
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "(?<![\p{L}\p{M}])[-+]?\d+(?![\p{L}\p{M}])", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta
+            # Decimal numbers dot/comma
+            Write-Host "Decimal numbers unicode count (regex: `"(?<![\p{L}\p{M}])[-+]?\d+([.,]\d+)?(?![\p{L}\p{M}])`"): " -NoNewline 
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "(?<![\p{L}\p{M}])[-+]?\d+([.,]\d+)?(?![\p{L}\p{M}])", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor Magenta
 
-            
-            $mc = [System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\b\w+\b", [System.Text.RegularExpressions.RegexOptions]::None)
+            # Word count
             Write-Host "Word count (no options, regex: `"\b\w+\b`"): " -NoNewline 
-            Write-Host $mc.Count -ForegroundColor DarkMagenta
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\b\w+\b", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor DarkMagenta
+            # Unicodeword count
+            Write-Host "Word count unicode (no options, regex: `"\b[\p{L}\p{M}\p{N}]+\b`"): " -NoNewline 
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\b[\p{L}\p{M}\p{N}]+\b", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor Magenta
+            # Sentence count
+            Write-Host "Sentence count (no options, regex: `"(?<=[\.!\?])\s+`"): " -NoNewline 
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "(?<=[\.!\?])\s+", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor DarkMagenta
 
             #field count
-            $mc = [System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\s*\S+\s*", [System.Text.RegularExpressions.RegexOptions]::None)
             Write-Host "Space separated fields, like words (no options, regex: `"\s*\S+\s*`"): " -NoNewline 
-            Write-Host $mc.Count -ForegroundColor Magenta
-
-            $mc = [System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "^", [System.Text.RegularExpressions.RegexOptions]::Multiline)
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\s*\S+\s*", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor Magenta
+            # Line count
+            Write-Host "Line count (no options, regex: `"\r?\n`"): " -NoNewline 
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\r?\n", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor DarkBlue
+            # Line count
             Write-Host "Line count (multiline, regex: `"^`"): " -NoNewline 
-            Write-Host $mc.Count -ForegroundColor DarkBlue
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "^", [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count -ForegroundColor DarkBlue
+            # Non-empty line count
+            Write-Host "Non-empty line count (multiline, regex: `"^(?=.*\S).+$`"): " -NoNewline 
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "^(?=.*\S).+$", [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count -ForegroundColor Blue
 
             $mc = $null # reset variable for later use, previous values are not needed anymore
             foreach ($pattern in $searchLines) {
+                if (-not $r) { # Literal search, not regex: escape special characters
+                    $pattern = [regex]::Escape($pattern)
+                }
                 $mc += [System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, $pattern, $regexOptions)
             }
             Write-Host "You provided " -NoNewline
             Write-Host $searchLines.Count -NoNewline -ForegroundColor Yellow
-            Write-Host " search pattern(s). " 
+            Write-Host " search pattern(s) as " -NoNewline
+            if ($r) {
+                Write-Host "regex. " -ForegroundColor Cyan -NoNewline
+            }
+            else {
+                Write-Host "literal text. " -ForegroundColor Green -NoNewline
+            }
             Write-Host "Your pattern(s) with your option(s) matched: " -NoNewline 
             Write-Host $mc.Count -ForegroundColor Red            
         }
 
-        # $searchLines  = @()  # reset arrays for case of endless loop
-        # $replaceLines = @()  # empty arrays
         if ($benchmark) {
             "Whole script took: {0:F5} s" -f $global:ProgramTimer.Elapsed.TotalSeconds
         }
