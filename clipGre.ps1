@@ -20,7 +20,7 @@ param (
     [Alias("showHelp", "h", "hint", "usage")]          
     [switch]$Help = $false,
     [Alias("caseInsensitive", "ignoreCase", "ic", "noCase")]          
-    [switch]$ci = $false,
+    [switch]$i = $false,
     [Alias("toFile", "w", "save", "write")]          
     [switch]$fileOutput = $false,
     [Alias("saveAs", "o", "out")]
@@ -279,21 +279,9 @@ function Read-Input {
           - For Substitution with regex, capture groups can be referenced via `$1, `$2, etc.
     #>
 
-    # ---- Normalize script-scoped switches and flags ----
-    # if ($null -eq $Script:extractMatch) { $Script:extractMatch = $false }
-    # if ($null -eq $Script:substitute)   { $Script:substitute   = $false }
-    # if ($null -eq $Script:delete)       { $Script:delete       = $false }
-    # if ($null -eq $Script:flags)        { $Script:flags        = ""     }
-
-    # Map external shorthand options to script switches if they exist
-    # (Safe if variables are undefined; they evaluate to $null)
-    # if ($grep)       { $Script:extractMatch = [bool]$grep }
-    # if ($substitute) { $Script:substitute   = [bool]$substitute }
-    # if ($delete)     { $Script:delete       = [bool]$delete }
-
     # ---- If no operation has been selected, show a 3-way operation menu ----
     if (-not $Script:extractMatch -and -not $Script:substitute -and -not $Script:delete) {
-        $opCaption = 'Operation selection'
+        $opCaption = 'Missing CLI options, please specify your intention'
         $opMessage = 'Choose what you want to do:'
         $opChoices = @(
             [System.Management.Automation.Host.ChoiceDescription]::new('&Substitution', 'Perform a substitution')
@@ -554,6 +542,9 @@ function get-SearchnReplaceExpressions() {
 
 
 #PROGRAM STARTS HERE
+$ci = $i  # disable naming conflict by copying to new variable with different name (case-insensitive=i is more intuitive for regex options)
+$i=$null  # reset $i to avoid confusion with regex ignore case option, which is now stored in $ci; just to be explicit
+
 $global:ProgramTimer = [System.Diagnostics.Stopwatch]::StartNew()
 if ($endless -and $fileOutput) {
         Write-Warning "Endless loop and file output shouldn't be combined, be sure you know what you're doing!"
@@ -648,9 +639,6 @@ do { # (Endless) loop start
         $expressions = get-SearchnReplaceExpressions
         $searchLines += $expressions.SearchFor
         $replaceLines += $expressions.ReplaceWith
-        # Write-Host "Number of search lines: $($searchLines.Count)"
-        # Write-Host "Number of replace lines: $($replaceLines.Count)"
-        # Filling up entries for replacement, if too less are provided corresponding search terms will be deleted (replaced by NULL)
         while ($replaceLines.Count -lt $searchLines.Count) {  # Filling replace terms to amount of search terms (possible because replace terms are assumed empty for missing lines)
             $replaceLines += '' # because empty lines are not recognized as lines, array will be filled with empty entries here for every empty line
         }
@@ -763,15 +751,9 @@ do { # (Endless) loop start
                 $null = $writeOut.AppendLine("")  # empty line / CRLF
             }
             if ($matchCount -eq 0) {
-                # if ($loop -gt 1 ) {
-                #     Write-Host "Run nr. $runNr`: " -NoNewline
-                # }
                 Write-Host "No matches at all" -ForegroundColor Yellow
             }
             else {
-                # if ($loop -gt 1 ) {
-                #     Write-Host "Run nr. $runNr`: " -NoNewline
-                # }
                 Write-Host "Count of all matches is " -NoNewline
                 Write-Host " $matchCount " -ForegroundColor Green -BackgroundColor DarkRed
                 Write-Host ""
@@ -818,8 +800,6 @@ do { # (Endless) loop start
             $subsElapsDesc = "Substitution took: {0:F3} ms" -f $sw.Elapsed.TotalMilliSeconds
             
             
-
-
             if ( [String]::CompareOrdinal($clipboardUnchanged, $clipboardText) -ne 0 ){  # Check whether Clipboardtext has changed - byte by byte comparision seems to help here - it works!
                 if ($fileOutput) { # This runs if output as file is desired, therefore needs to be called at the end
                     write-File($clipboardText)
@@ -955,12 +935,3 @@ do { # (Endless) loop start
         }
     }
 } until (-not $endless)
-
-
-#powershell hat mir schonmal einen text ausgegeben der nicht mehr im programmcode stand, das war ein abschnittstrenner, lauter - striche
-#diese wurden nachdem ich mich umentschieden habe und es aus dem code entfernt habe noch immer ausgeführt an
-#der stelle im code wo sie vorher standen. ich wurde verrückt weil ich nicht wusste warum
-#neustart von powershell und schwupps wieder alles gut
-#heute dann hat nichts mehr gematched - es gab nur noch "fullmatches" (also ^match$) oder gar keine. wieder rätselhaft
-#powershell neu gestartet dann wars problem behoben!!! 
-#really strange behaviour!
