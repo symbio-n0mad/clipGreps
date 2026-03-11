@@ -11,21 +11,21 @@ param (
     [string[]]$searchFolderPath = @(),   
     [Alias("replaceFolder", "rdir", "rd")]          
     [string[]]$replaceFolderPath = @(),
-    [Alias("onTheFly", "readInput", "ri", "ia")] 
+    [Alias("readInput", "ri", "ia")] 
     [switch]$interactive,
     [Alias("wait", "delay", "t", "sleep")] 
     [string]$timeout = "0",
-    [Alias("reOptions", "regExFlags", "modifier", "m")] 
+    [Alias("modifier", "m")] 
     [string]$flags = "",
-    [Alias("showHelp", "h", "hint", "usage")]          
+    [Alias("h", "hint", "usage")]          
     [switch]$Help = $false,
-    [Alias("caseInsensitive", "ignoreCase", "ic", "noCase", "i")]          
+    [Alias("ignoreCase", "ic", "noCase", "i")]          
     [switch]$ci = $false,
-    [Alias("toFile", "w", "save", "write")]          
+    [Alias("w", "save", "write")]          
     [switch]$fileOutput = $false,
     [Alias("saveAs", "o", "out")]
     [string]$fileName = "",  
-    [Alias("regEx", "advanced", "regExP")]          
+    [Alias("regEx", "regExP")]          
     [switch]$r,  
     [Alias("after")]          
     [int16]$A = 0,
@@ -33,9 +33,9 @@ param (
     [int16]$B = 0,
     [Alias("context", "combined")]          
     [int16]$C = 0,
-    [Alias("fullFile", "wholeTextFile", "singleFile", "f")]          
+    [Alias("fullFile", "f")]          
     [switch]$wholeFile = $false,  
-    [Alias("termOpen", "stay", "windowPersist", "confirm", "p")]
+    [Alias("stay","confirm", "p")]
     [switch]$persist = $false,  
     [Alias("grep", "filter", "x", "extract", "g")]    
     [switch]$extractMatch,
@@ -43,13 +43,13 @@ param (
     [switch]$delete,
     [Alias("forever", "relentless", "8")]    
     [switch]$endless,
-    [Alias("repeat", "again", "l")]    
+    [Alias("repeat", "l")]    
     [int]$loop = 1,
-    [Alias("measTim", "measureTime", "measure", "bm")]
+    [Alias("measTim", "measure", "bm")]
     [switch]$benchmark = $false,
     [Alias("sub", "substitution", "s")]    
     [switch]$substitute,
-    [Alias("countMatches", "statistics", "n")]    
+    [Alias("count", "statistics", "n")]    
     [switch]$stats,
     [Alias("switch", "rev", "exchange", "e")]    
     [switch]$revert
@@ -542,7 +542,7 @@ function get-SearchnReplaceExpressions() {
     }
 }
 
-function generate-Stats() {
+function show-Stats() {
                 Write-Host ""
             "-" * 25
             $metrics = Get-TextMetricsPs5 -Text $clipboardUnchanged
@@ -665,6 +665,9 @@ if (
 # $C is $A and $B combined, to reduce variable amount we sum them up here  # used for context w grepping
 $A += $C
 $B += $C
+if ($A -gt 0 -or $B -gt 0) {$extractMatch = $true}
+if ($revert) { $substitute = $true } # Revert implies substitute, because it is a special case of substitution
+
 $runNr = 0
 if ($loop -lt 1) {$loop = 1} #avoid empty endless loop in case of wrong user input
 
@@ -872,7 +875,7 @@ do { # (Endless) loop start
             }
         }
         if ($stats) {
-            generate-Stats       
+            show-Stats       
         }
         if ($benchmark) {
             "Whole script took: {0:F5} s" -f $global:ProgramTimer.Elapsed.TotalSeconds
