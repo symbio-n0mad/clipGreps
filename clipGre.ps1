@@ -15,12 +15,12 @@ param (
     [switch]$interactive,
     [Alias("wait", "delay", "t", "sleep")] 
     [string]$timeout = "0",
-    [Alias("reOptions", "regExFlags", "modifier", "ro")] 
+    [Alias("reOptions", "regExFlags", "modifier", "m")] 
     [string]$flags = "",
     [Alias("showHelp", "h", "hint", "usage")]          
     [switch]$Help = $false,
-    [Alias("caseInsensitive", "ignoreCase", "ic", "noCase")]          
-    [switch]$i = $false,
+    [Alias("caseInsensitive", "ignoreCase", "ic", "noCase", "i")]          
+    [switch]$ci = $false,
     [Alias("toFile", "w", "save", "write")]          
     [switch]$fileOutput = $false,
     [Alias("saveAs", "o", "out")]
@@ -45,7 +45,7 @@ param (
     [switch]$endless,
     [Alias("repeat", "again", "l")]    
     [int]$loop = 1,
-    [Alias("measTim", "measureTime", "measure", "m", "bm")]
+    [Alias("measTim", "measureTime", "measure", "bm")]
     [switch]$benchmark = $false,
     [Alias("sub", "substitution", "s")]    
     [switch]$substitute,
@@ -87,9 +87,9 @@ function Get-StringLineInfo {
 
     $lineBreaks = New-Object System.Collections.Generic.List[int]
 
-    for ($i = 0; $i -lt $Text.Length; $i++) {
-        if ($Text[$i] -eq "`n") {
-            $lineBreaks.Add($i)
+    for ($var = 0; $var -lt $Text.Length; $var++) {
+        if ($Text[$var] -eq "`n") {
+            $lineBreaks.Add($var)
         }
     }
 
@@ -158,14 +158,14 @@ function Get-CharacterMap {
     foreach ($k in $keys) {
         # Build UTF-32 codepoint list (handles surrogate pairs)
         $cpStrings = New-Object 'System.Collections.Generic.List[string]'
-        $i = 0
-        while ($i -lt $k.Length) {
-            if ($i -lt $k.Length - 1 -and [char]::IsSurrogatePair($k[$i], $k[$i+1])) {
-                $cp = [char]::ConvertToUtf32($k[$i], $k[$i+1])
-                $i += 2
+        $var = 0
+        while ($var -lt $k.Length) {
+            if ($var -lt $k.Length - 1 -and [char]::IsSurrogatePair($k[$var], $k[$var+1])) {
+                $cp = [char]::ConvertToUtf32($k[$var], $k[$var+1])
+                $var += 2
             } else {
-                $cp = [int][char]$k[$i]
-                $i += 1
+                $cp = [int][char]$k[$var]
+                $var += 1
             }
             $cpStrings.Add('U+' + $cp.ToString('X'))
         }
@@ -202,39 +202,39 @@ function Get-TextMetricsPs5 {
     function Get-CodePointCount {
         param([string]$S)
         $count = 0
-        $i = 0
-        while ($i -lt $S.Length) {
-            $ch = $S[$i]
+        $var = 0
+        while ($var -lt $S.Length) {
+            $ch = $S[$var]
             $code = [int]$ch
 
             # High surrogate range: D800–DBFF
             if ($code -ge 0xD800 -and $code -le 0xDBFF) {
-                if ($i + 1 -lt $S.Length) {
-                    $next = [int]$S[$i + 1]
+                if ($var + 1 -lt $S.Length) {
+                    $next = [int]$S[$var + 1]
                     # Low surrogate range: DC00–DFFF
                     if ($next -ge 0xDC00 -and $next -le 0xDFFF) {
                         # Valid surrogate pair -> one code point
                         $count += 1
-                        $i += 2
+                        $var += 2
                         continue
                     }
                 }
                 # Unpaired high surrogate -> count as one code point
                 $count += 1
-                $i += 1
+                $var += 1
                 continue
             }
 
             # Low surrogate without preceding high surrogate -> count as one code point
             if ($code -ge 0xDC00 -and $code -le 0xDFFF) {
                 $count += 1
-                $i += 1
+                $var += 1
                 continue
             }
 
             # BMP char -> one code point
             $count += 1
-            $i += 1
+            $var += 1
         }
         return $count
     }
@@ -265,6 +265,50 @@ function Get-TextMetricsPs5 {
     }
 }
 
+# function Read-Input {
+#     # # Present a clean A/B choice: "Deletion/Substitution" vs "Grep/Text search"
+#     $caption = 'Empty replacement string detected'
+#     $message = 'Do you want a deletion/substitution or a grep (text search)?'
+#     $choices = @(
+#         [System.Management.Automation.Host.ChoiceDescription]::new('&Deletion', 'Perform deletion/substitution')
+#         [System.Management.Automation.Host.ChoiceDescription]::new('&Grep', 'Run a grep-like text search')
+#     )
+#     $default = 1  # 0 = Substitution, 1 = Grep
+
+
+#     $flags = ""
+#     $replace = ""
+#     $search = ""
+#     if ($r) {
+#         if ($Script:flags -eq "") {
+#             $flags = Read-Host "Please enter regex flags (e.g. 'i' for ignore case, 'm' for multiline, leave empty for none) "
+#         } else {
+#             $flags = $Script:flags
+#         }
+#         $search  = Read-Host "Please enter search text (.NET flavor regex syntax allowed) "
+#     } else {
+#         $search  = Read-Host "Please enter search text"
+#     }
+#     #if (-not $extractMatch -and -not $delete) {  # Replacement only makes sense if not extracting or deleting
+#         if ($r) {
+#             Write-Host "Groups may be referenced by `$1, `$2 etc."
+#         }
+#         $replace = Read-Host "Please enter replacement text"
+#     if ($replace -eq "") {
+
+#         $selection = $Host.UI.PromptForChoice($caption, $message, $choices, $default)
+#         switch ($selection) {
+#             0 { $Script:delete = $true }  # 'User selected: Substitution'
+#             1 { $replace = $null }  # 'User selected: Grep'
+#         }
+#     }
+#     #}
+#     return [PSCustomObject]@{
+#         Flags  = $flags
+#         Search  = $search
+#         Replace = $replace
+#     }
+# }
 function Read-Input {
     <#
         Purpose:
@@ -542,8 +586,8 @@ function get-SearchnReplaceExpressions() {
 
 
 #PROGRAM STARTS HERE
-$ci = $i  # disable naming conflict by copying to new variable with different name (case-insensitive=i is more intuitive for regex options)
-$i=$null  # reset $i to avoid confusion with regex ignore case option, which is now stored in $ci; just to be explicit
+#$ci = $i  # disable naming conflict by copying to new variable with different name (case-insensitive=i is more intuitive for regex options)
+#$i=$null  # reset $i to avoid confusion with regex ignore case option, which is now stored in $ci; just to be explicit
 
 $global:ProgramTimer = [System.Diagnostics.Stopwatch]::StartNew()
 if ($endless -and $fileOutput) {
@@ -639,6 +683,9 @@ do { # (Endless) loop start
         $expressions = get-SearchnReplaceExpressions
         $searchLines += $expressions.SearchFor
         $replaceLines += $expressions.ReplaceWith
+        # Write-Host "Number of search lines: $($searchLines.Count)"
+        # Write-Host "Number of replace lines: $($replaceLines.Count)"
+        # Filling up entries for replacement, if too less are provided corresponding search terms will be deleted (replaced by NULL)
         while ($replaceLines.Count -lt $searchLines.Count) {  # Filling replace terms to amount of search terms (possible because replace terms are assumed empty for missing lines)
             $replaceLines += '' # because empty lines are not recognized as lines, array will be filled with empty entries here for every empty line
         }
@@ -780,9 +827,9 @@ do { # (Endless) loop start
 
             $sw = [System.Diagnostics.Stopwatch]::StartNew()
             # Main processing loop: iterate search/replace lines
-            for ($i = 0; $i -lt $searchLines.Count; $i++) {  # for every entry in searchLines-array (contains search all patterns)
-                $searchContent = $searchLines[$i]
-                $replaceContent = $replaceLines[$i]
+            for ($var = 0; $var -lt $searchLines.Count; $var++) {  # for every entry in searchLines-array (contains search all patterns)
+                $searchContent = $searchLines[$var]
+                $replaceContent = $replaceLines[$var]
 
                 if (-not $r) { # Literal search, not regex: escape special characters
                     $searchContent = [regex]::Escape($searchContent)
@@ -935,3 +982,12 @@ do { # (Endless) loop start
         }
     }
 } until (-not $endless)
+
+
+#powershell hat mir schonmal einen text ausgegeben der nicht mehr im programmcode stand, das war ein abschnittstrenner, lauter - striche
+#diese wurden nachdem ich mich umentschieden habe und es aus dem code entfernt habe noch immer ausgeführt an
+#der stelle im code wo sie vorher standen. ich wurde verrückt weil ich nicht wusste warum
+#neustart von powershell und schwupps wieder alles gut
+#heute dann hat nichts mehr gematched - es gab nur noch "fullmatches" (also ^match$) oder gar keine. wieder rätselhaft
+#powershell neu gestartet dann wars problem behoben!!! 
+#really strange behaviour!
