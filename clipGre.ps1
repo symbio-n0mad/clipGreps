@@ -55,6 +55,7 @@ param (
     [switch]$revert
 )
 
+
 function wait-Timeout([int]$additionalTime = 0) {
     # accepts additional timeout, for internals requiring waiting time (e.g. help text)
     $newDelay = [math]::Abs([int]([math]::Round(([double]($timeout -replace ',','.') * 1000)))) + $additionalTime #convert , to . then from string to double multiply 1k then round and convert to int and then take abs
@@ -63,7 +64,7 @@ function wait-Timeout([int]$additionalTime = 0) {
     }
 }
 
-function show-Confirmation() {
+function confirm-exit() {
     if ($persist){
         if ($loop -gt 1 ) {
            Write-Host "Run nr. $runNr`: " -NoNewline
@@ -74,6 +75,7 @@ function show-Confirmation() {
 }
 
 function Get-StringLineInfo {
+    # llm
     param(
         [Parameter(Mandatory)]
         [string]$Text,
@@ -108,6 +110,7 @@ function Get-StringLineInfo {
     }
 }
 function Get-CharacterMap {
+    # llm
     param(
         [Parameter(Mandatory = $true)]
         [string]$Text,
@@ -186,6 +189,7 @@ function Get-CharacterMap {
 }
 
 function Get-TextMetricsPs5 {
+    # llm
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$Text
@@ -265,52 +269,8 @@ function Get-TextMetricsPs5 {
     }
 }
 
-# function Read-Input {
-#     # # Present a clean A/B choice: "Deletion/Substitution" vs "Grep/Text search"
-#     $caption = 'Empty replacement string detected'
-#     $message = 'Do you want a deletion/substitution or a grep (text search)?'
-#     $choices = @(
-#         [System.Management.Automation.Host.ChoiceDescription]::new('&Deletion', 'Perform deletion/substitution')
-#         [System.Management.Automation.Host.ChoiceDescription]::new('&Grep', 'Run a grep-like text search')
-#     )
-#     $default = 1  # 0 = Substitution, 1 = Grep
-
-
-#     $flags = ""
-#     $replace = ""
-#     $search = ""
-#     if ($r) {
-#         if ($Script:flags -eq "") {
-#             $flags = Read-Host "Please enter regex flags (e.g. 'i' for ignore case, 'm' for multiline, leave empty for none) "
-#         } else {
-#             $flags = $Script:flags
-#         }
-#         $search  = Read-Host "Please enter search text (.NET flavor regex syntax allowed) "
-#     } else {
-#         $search  = Read-Host "Please enter search text"
-#     }
-#     #if (-not $extractMatch -and -not $delete) {  # Replacement only makes sense if not extracting or deleting
-#         if ($r) {
-#             Write-Host "Groups may be referenced by `$1, `$2 etc."
-#         }
-#         $replace = Read-Host "Please enter replacement text"
-#     if ($replace -eq "") {
-
-#         $selection = $Host.UI.PromptForChoice($caption, $message, $choices, $default)
-#         switch ($selection) {
-#             0 { $Script:delete = $true }  # 'User selected: Substitution'
-#             1 { $replace = $null }  # 'User selected: Grep'
-#         }
-#     }
-#     #}
-#     return [PSCustomObject]@{
-#         Flags  = $flags
-#         Search  = $search
-#         Replace = $replace
-#     }
-# }
 function Read-Input {
-    <#
+    <# llm
         Purpose:
           Interactive input reader that decides between Substitution, Grep (text filter), or Deletion,
           and optionally enables regex (with or without flags). Returns a PSCustomObject
@@ -582,302 +542,8 @@ function get-SearchnReplaceExpressions() {
     }
 }
 
-
-
-
-#PROGRAM STARTS HERE
-#$ci = $i  # disable naming conflict by copying to new variable with different name (case-insensitive=i is more intuitive for regex options)
-#$i=$null  # reset $i to avoid confusion with regex ignore case option, which is now stored in $ci; just to be explicit
-
-$global:ProgramTimer = [System.Diagnostics.Stopwatch]::StartNew()
-if ($endless -and $fileOutput) {
-        Write-Warning "Endless loop and file output shouldn't be combined, be sure you know what you're doing!"
-        [void][System.Console]::ReadLine()
-}
-if ($revert -and ($r -or $delete)) {
-    Write-Warning "Only literal replacements (no regexes or deletions) can be meaningfully reverted, be sure you know what you're doing!"
-}
-# Show help text if necessary, then exit
-if (
-    $Help.IsPresent# -or  # Help flag provided or
-    # (
-    #     (-not $searchFolderPath -or $searchFolderPath.Count -eq 0) -and    # No folder         and
-    #     (-not $searchFilePath -or $searchFilePath.Count -eq 0) -and      # No file           and
-    #     (-not $searchText -or $searchText.Count -eq 0) -and  # No CLI args
-    #     (-not $interactive) -and  # No interactive mode 
-    #     (-not $stats)  #
-    # )
-) {
-    show-Helptext
-    show-Confirmation
-    wait-Timeout(750)
-    return 
-}
-if (
-    -not $interactive -and
-    (-not $searchFolderPath -or $searchFolderPath.Count -eq 0) -and    # No folder         and
-    (-not $searchFilePath -or $searchFilePath.Count -eq 0) -and      # No file           and
-    (-not $searchText -or $searchText.Count -eq 0)  # No CLI args
-) {
-    $interactive = $true
-}
-
-
-# $C is $A and $B combined, to reduce variable amount we sum them up here  # used for context w grepping
-$A += $C
-$B += $C
-$runNr = 0
-if ($loop -lt 1) {$loop = 1} #avoid empty endless loop in case of wrong user input
-# $searchFiles = @()  # initialize arrays
-# $replaceFiles = @()  # empty arrays
-
-
-
-if ($ci) {
-    $regexOptions = [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
-} else {
-    $regexOptions = [System.Text.RegularExpressions.RegexOptions]::None
-}
-
-if (-not $interactive) {
-    $regularOptions = set-RegexFlags
-    $regexOptions = $regexOptions -bor $regularOptions.Options
-}
-
-if ($flags.Length -gt 0) {$r = $true}  # Provided flags indicate intended usage of regex
-
-
-do { # (Endless) loop start
-    for ($forRun = 1; $forRun -lt $loop + 1; $forRun++) {
-        $runNr++
-        $searchLines  = @()  # initialize arrays
-        $replaceLines = @()  # empty arrays
-
-        if ($interactive) {
-            $userRead = Read-Input
-            $regularOptions = set-RegexFlags
-
-            $searchLines += $userRead.Search
-            $replaceLines += $userRead.Replace
-            $flags = $userRead.Flags
-            $regexOptions = $regexOptions -bor $regularOptions.Options
-        }
-        if ($timeout.Contains("-")) {  # Negative values will yield waiting time at program start
-            wait-Timeout
-        }
-        # Read text from clipboard
-        $clipboardText = Get-Clipboard -Raw
-        $clipboardUnchanged = $clipboardText  # for later comparison to check whether changes were made
-        # Write-Host "Current regex flags: " -NoNewline
-        # Write-Host $flags
-        # Write-Host $regexOptions
-        if ([string]::IsNullOrWhiteSpace($clipboardText)) {   
-            # if ($loop -gt 1 ) {
-            # Write-Host "Run nr. $runNr`: " -NoNewline
-            # }
-            Write-Host "No clipboard available. Nothing to do!" -ForegroundColor Magenta
-            if (-not $endless) {
-                return 
-            }
-        }
-        $expressions = get-SearchnReplaceExpressions
-        $searchLines += $expressions.SearchFor
-        $replaceLines += $expressions.ReplaceWith
-        # Write-Host "Number of search lines: $($searchLines.Count)"
-        # Write-Host "Number of replace lines: $($replaceLines.Count)"
-        # Filling up entries for replacement, if too less are provided corresponding search terms will be deleted (replaced by NULL)
-        while ($replaceLines.Count -lt $searchLines.Count) {  # Filling replace terms to amount of search terms (possible because replace terms are assumed empty for missing lines)
-            $replaceLines += '' # because empty lines are not recognized as lines, array will be filled with empty entries here for every empty line
-        }
-        if ($delete) {
-            foreach ($searchLine in $searchLines) {
-                $replaceLines = ''
-            }
-        }
-        # if(-not ($searchLines -and ($searchLines | Where-Object { -not [string]::IsNullOrWhiteSpace($_.ToString()) }))){
-        #     Write-Warning "Working with empty search terms seems difficult!"
-        #     Write-Host "Beware of the output!" -ForegroundColor Red
-        # }
-        if ($revert) { 
-            $searchLines, $replaceLines = $replaceLines, $searchLines  # Swap search and replace lines
-        }
-        if ($loop -gt 1 ) {
-            Write-Host "-----------" -ForegroundColor DarkCyan
-            Write-Host "Begin run $runNr" -BackgroundColor DarkGray -ForegroundColor DarkCyan
-        }
-
-
-        # Write-Host "Search patterns to process: " -NoNewline
-        # Write-Host $searchLines
-        # Write-Host $searchFolderPath
-        # Write-Host $searchFilePath
-        # Write-Host $searchLines
-
-        # Main processing: Grep / Extract matches with context
-        if ($extractMatch -or (-not $delete -and -not ($replaceLines | Where-Object { $_ -ne $null -and $_ -ne '' }) -and ($searchLines | Where-Object { $_ -ne $null -and $_ -ne '' }))) {  # test for grep flag
-            $lines = $clipboardText -split "`n", -1
-            $writeOut = New-Object System.Text.StringBuilder  # StringObject for output as textfile
-
-            $matchCount = 0
-            # $allMatches = @()
-            $allMatches = [System.Collections.Generic.List[System.Text.RegularExpressions.Match]]::new()
-
-            $sw = [System.Diagnostics.Stopwatch]::StartNew()
-            foreach ($pattern in $searchLines) {
-                if (-not $r) { # Literal search, not regex: escape special characters
-                    $pattern = [regex]::Escape($pattern)
-                }
-                $mc = [System.Text.RegularExpressions.Regex]::Matches($clipboardText, $pattern, $regexOptions)
-                foreach ($m in $mc) {
-                    $allMatches.Add($m)
-                }
-            }
-
-            # foreach ($pattern in $searchLines) {
-            #     $allMatches += [System.Text.RegularExpressions.Regex]::Matches($clipboardText, $pattern, $regexOptions)  # Adding all matches to one array
-            # }
-            $sw.Stop()
-            $grepElapsDesc = "Grepping took: $($sw.Elapsed.TotalMilliseconds) ms"
-
-            $matchCount = $allMatches.Count  # Array count of all matches
-            $allMatches = $allMatches | Sort-Object Index  # Sorting all matches by index for ordered processing
-            foreach ($m in $allMatches) {
-                $newB = $B  # New name provides possibility to change value without loosing the information about lines to print
-                $newA = $A  # New name provides possibility to change value without loosing the information about lines to print
-                $matchMetaData = Get-StringLineInfo -Text $clipboardText -Position $m.Index -Length $m.Length
-                # if ($loop -gt 1 ) {
-                #     Write-Host "Run nr. $runNr`: " -NoNewline
-                # }
-                Write-Host "Line " -NoNewline
-                Write-Host "$($matchMetaData.StartLine)" -NoNewline -ForegroundColor Yellow
-                Write-Host ", matched: `"" -NoNewline
-                $actValue = $m.Groups[0].Value
-                $actValue = $actValue.Replace("`r","").Replace("`n","")
-                Write-Host "$actValue" -ForegroundColor Red -NoNewline
-                Write-Host "`" at index " -NoNewline
-                Write-Host "$($m.Index)" -ForegroundColor Cyan -NoNewline
-                Write-Host " with length " -NoNewline
-                Write-Host "$($m.Length)" -ForegroundColor Blue -NoNewline
-                Write-Host ":"
-
-                $addText = ""
-                if ($loop -gt 1 ) {
-                    $addText = "Run $runNr. "
-                }
-                if ($benchmark) {
-                    $addText = "$addText$grepElapsDesc"
-                }
-                
-                # Write-Host "`" at index $($m.Index) with length $($m.Length):"      
-                $null = $writeOut.AppendLine("$($addText)Line $($matchMetaData.StartLine), matched: `"$($m.Groups[0].Value)`" at index $($m.Index) with length $($m.Length):`n")  # Append to output string
-                # Write-Host "newB"
-                # Write-Host $newB
-                # Write-Host "matchMetaData.StartLine"
-                # Write-Host $matchMetaData.StartLine
-                while(($matchMetaData.StartLine - $newB) -lt 1 ) {  # decrement B if out of bounds, no negative line numbers are possible
-                    $newB--
-                }
-                # Write-Host $newB
-                while(($matchMetaData.EndLine + $newA) -gt $matchMetaData.TotalLines ) {  # decrement A if out of bounds, because cannot show nonexisting line numbers
-                    $newA--
-                }
-                #"-" * 50
-                if($newB -gt 0) {
-                    # Write-Host ($matchMetaData.StartLine - $newB)
-                    # Write-Host ($matchMetaData.StartLine -1-1)
-                    $outputLines = $lines[($matchMetaData.StartLine - $newB - 1)..($matchMetaData.StartLine -1-1 )]  # Slice array to yield lines before match
-                    $outputLines | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }  # Append and print
-                }
-                $lines[($matchMetaData.StartLine-1)..($matchMetaData.EndLine-1)] | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }  # Append and print match lines
-                if($newA -gt 0) {
-                    $outputLines = $lines[($matchMetaData.EndLine)..($matchMetaData.EndLine - 1 + $newA )]  # Slice array to yield lines after match
-                    $outputLines | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }  # Append and print
-                }
-                "-" * 50
-                Write-Host ""  # empty line / CRLF
-                $null = $writeOut.AppendLine("")  # empty line / CRLF
-            }
-            if ($matchCount -eq 0) {
-                Write-Host "No matches at all" -ForegroundColor Yellow
-            }
-            else {
-                Write-Host "Count of all matches is " -NoNewline
-                Write-Host " $matchCount " -ForegroundColor Green -BackgroundColor DarkRed
+function generate-Stats() {
                 Write-Host ""
-                if ($fileOutput) {
-                    write-File($writeOut.ToString())
-                }
-            }
-            if ($benchmark) {
-                Write-Host $grepElapsDesc
-                Write-Host ""
-            }
-        }
-
-        if ($substitute -or $delete -or (($replaceLines | Where-Object { $_ -ne $null -and $_ -ne '' }) -and ($searchLines | Where-Object { $_ -ne $null -and $_ -ne '' }))) {  # If not grepping / extracting, do search and replace
-            # Write-Host "entered replacement section"
-            # "Performing search and replace..."
-            # Check for usability of provided search/replace lines
-            if ($searchLines.Count -lt $replaceLines.Count) {  # Search terms being < replace terms is impossible
-                Write-Error "Error: Amount of search strings cannot be less than replace strings, check entries!"
-                Write-Warning "In other words: For every replacement a position needs to be specified!"
-                Read-Host -Prompt "Press enter to end program"
-                return 
-            }
-
-            $sw = [System.Diagnostics.Stopwatch]::StartNew()
-            # Main processing loop: iterate search/replace lines
-            for ($var = 0; $var -lt $searchLines.Count; $var++) {  # for every entry in searchLines-array (contains search all patterns)
-                $searchContent = $searchLines[$var]
-                $replaceContent = $replaceLines[$var]
-
-                if (-not $r) { # Literal search, not regex: escape special characters
-                    $searchContent = [regex]::Escape($searchContent)
-                }
-                try {
-                    $clipboardText = [regex]::Replace($clipboardText, $searchContent, [string]$replaceContent, $regexOptions)
-                }
-                catch {
-                    Write-Warning "Skipping invalid substitution: $searchContent - $_"
-                    continue
-                }
-            }
-            $sw.Stop()
-            # $subsElapsDesc = "Substitution took: $($sw.Elapsed)"
-            $subsElapsDesc = "Substitution took: {0:F3} ms" -f $sw.Elapsed.TotalMilliSeconds
-            
-            
-            if ( [String]::CompareOrdinal($clipboardUnchanged, $clipboardText) -ne 0 ){  # Check whether Clipboardtext has changed - byte by byte comparision seems to help here - it works!
-                if ($fileOutput) { # This runs if output as file is desired, therefore needs to be called at the end
-                    write-File($clipboardText)
-                }
-                else {  # Else = no file output? -> then set clipboard content
-                    if ([string]::IsNullOrEmpty($clipboardText)) {
-                        $null | Set-Clipboard  # explict deletion because Set-Clipboard does not accept $null-arrays/strings
-                        # if ($loop -gt 1 ) {
-                        #     Write-Host "Run $runNr`: " -NoNewline
-                        # }
-                        Write-Host 'Clipboard is empty now.' -ForegroundColor Blue
-                    }
-                    else {
-                        Set-Clipboard -Value $clipboardText  # Modified text back to the clipboard!
-                    }
-                    # if ($loop -gt 1 ) {
-                    #     Write-Host "Run $runNr`: " -NoNewline
-                    # }
-                    Write-Host 'Clipboard successfully modified.' -ForegroundColor Green
-                }
-            }
-            else {
-                Write-Host 'Clipboard text has not changed.' -ForegroundColor Yellow
-            }
-            if ($benchmark) {
-                Write-Host $subsElapsDesc
-                Write-Host ""
-            }
-        }
-        if ($stats) {
-            Write-Host ""
             "-" * 25
             $metrics = Get-TextMetricsPs5 -Text $clipboardUnchanged
             
@@ -926,7 +592,6 @@ do { # (Endless) loop start
             # Decimal numbers dot/comma
             Write-Host "Decimal numbers unicode count (regex: `"(?<![\p{L}\p{M}])[-+]?\d+([.,]\d+)?(?![\p{L}\p{M}])`"): " -NoNewline 
             Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "(?<![\p{L}\p{M}])[-+]?\d+([.,]\d+)?(?![\p{L}\p{M}])", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor Magenta
-
             # Word count
             Write-Host "Word count (no options, regex: `"\b\w+\b`"): " -NoNewline 
             Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\b\w+\b", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor DarkMagenta
@@ -936,7 +601,6 @@ do { # (Endless) loop start
             # Sentence count
             Write-Host "Sentence count (no options, regex: `"(?<=[\.!\?])\s+`"): " -NoNewline 
             Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "(?<=[\.!\?])\s+", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor DarkMagenta
-
             #field count
             Write-Host "Space separated fields, like words (no options, regex: `"\s*\S+\s*`"): " -NoNewline 
             Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\s*\S+\s*", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor Magenta
@@ -967,27 +631,258 @@ do { # (Endless) loop start
                 Write-Host "literal text. " -ForegroundColor Green -NoNewline
             }
             Write-Host "Your pattern(s) with your option(s) matched: " -NoNewline 
-            Write-Host $mc.Count -ForegroundColor Red            
+            Write-Host $mc.Count -ForegroundColor Red        
+}
+
+
+
+#PROGRAM STARTS HERE
+
+$global:ProgramTimer = [System.Diagnostics.Stopwatch]::StartNew()
+if ($endless -and $fileOutput) {
+        Write-Warning "Endless loop and file output shouldn't be combined, be sure you know what you're doing!"
+        [void][System.Console]::ReadLine()
+}
+if ($revert -and ($r -or $delete)) {
+    Write-Warning "Only literal replacements (no regexes or deletions) can be meaningfully reverted, be sure you know what you're doing!"
+}
+# Show help text if necessary, then exit
+if ( $Help.IsPresent ) {
+    show-Helptext
+    confirm-exit
+    wait-Timeout(750)
+    return 
+}
+if (
+    -not $interactive -and
+    (-not $searchFolderPath -or $searchFolderPath.Count -eq 0) -and    # No folder         and
+    (-not $searchFilePath -or $searchFilePath.Count -eq 0) -and      # No file           and
+    (-not $searchText -or $searchText.Count -eq 0)  # No CLI args
+) {
+    $interactive = $true
+}
+
+# $C is $A and $B combined, to reduce variable amount we sum them up here  # used for context w grepping
+$A += $C
+$B += $C
+$runNr = 0
+if ($loop -lt 1) {$loop = 1} #avoid empty endless loop in case of wrong user input
+
+if ($ci) {
+    $regexOptions = [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+} else {
+    $regexOptions = [System.Text.RegularExpressions.RegexOptions]::None
+}
+
+if (-not $interactive) {
+    $regularOptions = set-RegexFlags
+    $regexOptions = $regexOptions -bor $regularOptions.Options
+}
+
+if ($flags.Length -gt 0) {$r = $true}  # Provided flags indicate intended usage of regex
+
+
+do { # (Endless) loop start
+    for ($forRun = 1; $forRun -lt $loop + 1; $forRun++) {
+        $runNr++
+        $searchLines  = @()  # initialize arrays
+        $replaceLines = @()  # empty arrays
+
+        if ($interactive) {
+            $userRead = Read-Input
+            $regularOptions = set-RegexFlags
+
+            $searchLines += $userRead.Search
+            $replaceLines += $userRead.Replace
+            $flags = $userRead.Flags
+            $regexOptions = $regexOptions -bor $regularOptions.Options
+        }
+        if ($timeout.Contains("-")) {  # Negative values will yield waiting time at program start
+            wait-Timeout
+        }
+        # Read text from clipboard
+        $clipboardText = Get-Clipboard -Raw
+        $clipboardUnchanged = $clipboardText  # for later comparison to check whether changes were made
+
+        if ([string]::IsNullOrWhiteSpace($clipboardText)) {   
+            Write-Host "No clipboard available. Nothing to do!" -ForegroundColor Magenta
+            if (-not $endless) {
+                return 
+            }
+        }
+        $expressions = get-SearchnReplaceExpressions
+        $searchLines += $expressions.SearchFor
+        $replaceLines += $expressions.ReplaceWith
+
+        # Filling up entries for replacement, if too less are provided corresponding search terms will be deleted (replaced by NULL)
+        while ($replaceLines.Count -lt $searchLines.Count) {  # Filling replace terms to amount of search terms (possible because replace terms are assumed empty for missing lines)
+            $replaceLines += '' # because empty lines are not recognized as lines, array will be filled with empty entries here for every empty line
+        }
+        if ($delete) {
+            foreach ($searchLine in $searchLines) {
+                $replaceLines = ''
+            }
+        }
+        if ($revert) { 
+            $searchLines, $replaceLines = $replaceLines, $searchLines  # Swap search and replace lines
+        }
+        if ($loop -gt 1 ) {
+            Write-Host "-----------" -ForegroundColor DarkCyan
+            Write-Host "Begin run $runNr" -BackgroundColor DarkGray -ForegroundColor DarkCyan
         }
 
+        # Main processing: Grep / Extract matches with context
+        if ($extractMatch -or (-not $delete -and -not ($replaceLines | Where-Object { $_ -ne $null -and $_ -ne '' }) -and ($searchLines | Where-Object { $_ -ne $null -and $_ -ne '' }))) {  # test for grep flag
+            $lines = $clipboardText -split "`n", -1
+            $writeOut = New-Object System.Text.StringBuilder  # StringObject for output as textfile
+
+            $matchCount = 0
+            # $allMatches = @()
+            $allMatches = [System.Collections.Generic.List[System.Text.RegularExpressions.Match]]::new()
+
+            $sw = [System.Diagnostics.Stopwatch]::StartNew()
+            foreach ($pattern in $searchLines) {
+                if (-not $r) { # Literal search, not regex: escape special characters
+                    $pattern = [regex]::Escape($pattern)
+                }
+                $mc = [System.Text.RegularExpressions.Regex]::Matches($clipboardText, $pattern, $regexOptions)
+                foreach ($m in $mc) {
+                    $allMatches.Add($m)
+                }
+            }
+            $sw.Stop()
+            $grepElapsDesc = "Grepping took: $($sw.Elapsed.TotalMilliseconds) ms"
+
+            $matchCount = $allMatches.Count  # Array count of all matches
+            $allMatches = $allMatches | Sort-Object Index  # Sorting all matches by index for ordered processing
+            foreach ($m in $allMatches) {
+                $newB = $B  # New name provides possibility to change value without loosing the information about lines to print
+                $newA = $A  # New name provides possibility to change value without loosing the information about lines to print
+                $matchMetaData = Get-StringLineInfo -Text $clipboardText -Position $m.Index -Length $m.Length
+
+                Write-Host "Line " -NoNewline
+                Write-Host "$($matchMetaData.StartLine)" -NoNewline -ForegroundColor Yellow
+                Write-Host ", matched: `"" -NoNewline
+                $actValue = $m.Groups[0].Value
+                $actValue = $actValue.Replace("`r","").Replace("`n","")  # to avoid disturbed output remove crlf
+                Write-Host "$actValue" -ForegroundColor Red -NoNewline
+                Write-Host "`" at index " -NoNewline
+                Write-Host "$($m.Index)" -ForegroundColor Cyan -NoNewline
+                Write-Host " with length " -NoNewline
+                Write-Host "$($m.Length)" -ForegroundColor Blue -NoNewline
+                Write-Host ":"
+
+                $addText = ""
+                if ($loop -gt 1 ) {
+                    $addText = "Run $runNr. "
+                }
+                if ($benchmark) {
+                    $addText = "$addText$grepElapsDesc"
+                }
+                   
+                $null = $writeOut.AppendLine("$($addText)Line $($matchMetaData.StartLine), matched: `"$($m.Groups[0].Value)`" at index $($m.Index) with length $($m.Length):`n")  # Append to output string
+                while(($matchMetaData.StartLine - $newB) -lt 1 ) {  # decrement B if out of bounds, no negative line numbers are possible
+                    $newB--
+                }
+
+                while(($matchMetaData.EndLine + $newA) -gt $matchMetaData.TotalLines ) {  # decrement A if out of bounds, because cannot show nonexisting line numbers
+                    $newA--
+                }
+
+                if($newB -gt 0) {
+                    $outputLines = $lines[($matchMetaData.StartLine - $newB - 1)..($matchMetaData.StartLine -1-1 )]  # Slice array to yield lines before match
+                    $outputLines | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }  # Append and print
+                }
+                $lines[($matchMetaData.StartLine-1)..($matchMetaData.EndLine-1)] | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }  # Append and print match lines
+                if($newA -gt 0) {
+                    $outputLines = $lines[($matchMetaData.EndLine)..($matchMetaData.EndLine - 1 + $newA )]  # Slice array to yield lines after match
+                    $outputLines | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }  # Append and print
+                }
+                "-" * 50
+                Write-Host ""  # empty line / CRLF
+                $null = $writeOut.AppendLine("")  # empty line / CRLF # $null supresses output
+            }
+            if ($matchCount -eq 0) {
+                Write-Host "No matches at all" -ForegroundColor Yellow
+            }
+            else {
+                Write-Host "Count of all matches is " -NoNewline
+                Write-Host " $matchCount " -ForegroundColor Green -BackgroundColor DarkRed
+                Write-Host ""
+                if ($fileOutput) {
+                    write-File($writeOut.ToString())
+                }
+            }
+            if ($benchmark) {
+                Write-Host $grepElapsDesc
+                Write-Host ""
+            }
+        }
+
+        if ($substitute -or $delete -or (($replaceLines | Where-Object { $_ -ne $null -and $_ -ne '' }) -and ($searchLines | Where-Object { $_ -ne $null -and $_ -ne '' }))) {  # If not grepping / extracting, do search and replace
+            # Check for usability of provided search/replace lines
+            if ($searchLines.Count -lt $replaceLines.Count) {  # Search terms being < replace terms is impossible
+                Write-Error "Error: Amount of search strings cannot be less than replace strings, check entries!"
+                Write-Warning "In other words: For every replacement a position needs to be specified!"
+                Read-Host -Prompt "Press enter to end program"
+                return 
+            }
+
+            $sw = [System.Diagnostics.Stopwatch]::StartNew()
+            # Main processing loop: iterate search/replace lines
+            for ($var = 0; $var -lt $searchLines.Count; $var++) {  # for every entry in searchLines-array (contains search all patterns)
+                $searchContent = $searchLines[$var]
+                $replaceContent = $replaceLines[$var]
+
+                if (-not $r) { # Literal search, not regex: escape special characters
+                    $searchContent = [regex]::Escape($searchContent)
+                }
+                try {
+                    $clipboardText = [regex]::Replace($clipboardText, $searchContent, [string]$replaceContent, $regexOptions)
+                }
+                catch {
+                    Write-Warning "Skipping invalid substitution: $searchContent - $_"
+                    continue
+                }
+            }
+            $sw.Stop()
+            $subsElapsDesc = "Substitution took: {0:F3} ms" -f $sw.Elapsed.TotalMilliSeconds
+            
+            if ( [String]::CompareOrdinal($clipboardUnchanged, $clipboardText) -ne 0 ){  # Check whether Clipboardtext has changed - byte by byte comparision seems to help here - it works!
+                if ($fileOutput) { # This runs if output as file is desired, therefore needs to be called at the end
+                    write-File($clipboardText)
+                }
+                else {  # Else = no file output? -> then set clipboard content
+                    if ([string]::IsNullOrEmpty($clipboardText)) {
+                        $null | Set-Clipboard  # explict deletion because Set-Clipboard does not accept $null-arrays/strings
+                        Write-Host 'Clipboard is empty now.' -ForegroundColor Blue
+                    }
+                    else {
+                        Set-Clipboard -Value $clipboardText  # Modified text back to the clipboard!
+                    }
+                    Write-Host 'Clipboard successfully modified.' -ForegroundColor Green
+                }
+            }
+            else {
+                Write-Host 'Clipboard text has not changed.' -ForegroundColor Yellow
+            }
+            if ($benchmark) {
+                Write-Host $subsElapsDesc
+                Write-Host ""
+            }
+        }
+        if ($stats) {
+            generate-Stats       
+        }
         if ($benchmark) {
             "Whole script took: {0:F5} s" -f $global:ProgramTimer.Elapsed.TotalSeconds
         }
         if ($loop -gt 1 ) {
             Write-Host "End run $runNr" -BackgroundColor DarkGray -ForegroundColor DarkCyan
         }
-        show-Confirmation
+        confirm-exit
         if (-not $timeout.Contains("-")) {  # Negative values will yield waiting time at program start
             wait-Timeout
         }
     }
 } until (-not $endless)
-
-
-#powershell hat mir schonmal einen text ausgegeben der nicht mehr im programmcode stand, das war ein abschnittstrenner, lauter - striche
-#diese wurden nachdem ich mich umentschieden habe und es aus dem code entfernt habe noch immer ausgeführt an
-#der stelle im code wo sie vorher standen. ich wurde verrückt weil ich nicht wusste warum
-#neustart von powershell und schwupps wieder alles gut
-#heute dann hat nichts mehr gematched - es gab nur noch "fullmatches" (also ^match$) oder gar keine. wieder rätselhaft
-#powershell neu gestartet dann wars problem behoben!!! 
-#really strange behaviour!
