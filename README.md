@@ -10,9 +10,9 @@ These are the core, productive features:
 
 - Supports **inline strings** (`-search foo`, `-replace bar`) or **text files** (see below) as search/replace ammo  
   - Reads your clipboard, modifies it and puts changes back into the clipboard
-- Includes a **grep-like search** mode (`-grep`) for quick text filtering 🔍  
-  - Displays: literal match, full line containing the match, the line number and overall match count
-- Optional **RegEx** mode (`-r`) and **case-insensitive mode** (`-ci`)  
+- Includes a **grep-like search** mode (`-search <pattern>`) for quick text filtering 🔍  
+  - Displays: literal match, full line (+ optional context) containing the match, the line number and overall match count
+- Optional **RegEx** mode (`-r`) and **case-insensitive mode** (`-i`)  
 
 
 
@@ -28,12 +28,12 @@ clipGre.ps1 -search "foo" -replace "bar"
 clipGre.ps1 -search "Jens@Hofmann.biz","Albert Schrödinger","123.999" -replace "[Redacted E-Mail]","[Redacted Name]","[Redacted Number]"
 
 # Grep-like filtering (no replacement)
-# Keeps only lines that match "pattern" from the clipboard, holds terminal open until confirmation
-clipGre.ps1 -grep -searchText "pattern" -confirm
+# Keeps only lines that match "pattern" from the clipboard
+clipGre.ps1 -searchText "pattern"
 
 # RegEx + case-insensitive replacement
 # Finds "foo...bar" regardless of case, and replaces the entire match with "baz".
-clipGre.ps1 -r -ci -searchText "foo.*bar" -replaceText "baz"
+clipGre.ps1 -r -i -searchText "foo.*bar" -replaceText "baz"
 
 ```
 
@@ -68,7 +68,7 @@ Below is a complete overview of all functional capabilities. Several options int
 
 ---
 
-### 🔍 Search & Replace Inputs
+### Search & Replace Inputs
 
 - **Inline search strings** (`-searchText`)  
   - Provided as a single string or an array  
@@ -79,16 +79,19 @@ Below is a complete overview of all functional capabilities. Several options int
     - Example: `-rt "one","two","three"`
 
 - **Search file** (`-searchFile <FILE>`)  
+  - Single string or array  
   - May be provided multiple times  
   - Each line is treated as one search pattern  
   - Empty lines are **deprecated**
 
 - **Replace file** (`-replaceFile <FILE>`)  
+  - Single string or array  
   - May be provided multiple times  
   - Each line corresponds to a replacement pattern  
   - **Empty patterns = deletions**
 
 - **Search folder** (`-searchFolder <FOLDER>`)  
+  - Single string or array  
   - Accepts one or multiple directories  
   - Uses only `*.txt` files  
   - Files are sorted alphabetically  
@@ -96,67 +99,74 @@ Below is a complete overview of all functional capabilities. Several options int
   - Empty files are **deprecated**
 
 - **Replace folder** (`-replaceFolder <FOLDER>`)  
+  - Single string or array  
   - Identical behaviour as search folder  
   - **Empty patterns = deletions**
 
 ---
 
-### 🗺 Mapping Files (Lazy / Mapping Mode)
+### Mapping Files (Lazy / Mapping Mode)
 
 - **Mapping file** (`-mappingFile`, aliases: `-lazyFile`, `-lazyPairs`)  
+  - Single string or array  
   - Contains *pairs* of search → replace entries  
   - Automatically enables **substitution mode** (`-substitute`)  
-  - Ideal for large lists of mappings where maintaining separate search/replace files is inconvenient  
+  - Ideal for lists of mappings where maintaining separate search/replace files is inconvenient  
   - Ensures consistent pairing without having to manage file order manually  
   - Lines typically follow the format:  
     ```
-    searchValue => replaceValue
+    1. searchValue 
+    2. replaceValue
+    3. searchValue 
+    4. replaceValue
+    etc.
     ```
 
 ---
 
-### 🤖 Implicit Behaviour
+### Implicit Behaviour
 
 Several features are triggered automatically when certain flags or inputs are used:
 
 | Condition | Implicit Action |
 |----------|------------------|
+| No search/replace arguments given | Activates **interactive mode** (`-interactive`) |
 | `-A`, `-B` or `-C` provided | Enables **grep mode** (`-grep`) |
 | `-flags` / `-modifier` used | Enables **regex mode** (`-r`) |
 | `-mappingFile` used | Enables **substitution** |
 | `-revert` used | Enables **substitution** |
-| No search/replace arguments given | Activates **interactive mode** (`-interactive`) |
 
 ---
 
-### 🧵 Mode Selection: Extract / Replace / Delete
+### Mode Selection: Extract / Replace / Delete
 
-These options are **optional** because the script attempts to infer which mode you intended based on the provided inputs. However, you may explicitly combine them if needed.
+These options are **optional** because the script attempts to infer which mode you intended based on the provided inputs. However, you may explicitly combine them if needed, where applicable.
 
-- **Grep / Extract match** (`-grep`)  
+- **Grep / Extract match** (`-grep / -g`)  
   - Prints only matching lines (or extracted text)  
   - Context options available (`-A`, `-B`, `-C`)
 
-- **Substitution** (`-substitute`)  
+- **Substitution** (`-substitute` / `-s`)  
   - Performs search & replace  
   - Activated automatically through mapping files or `-revert`
+  - Overridden by `-delete`
 
-- **Revert substitution** (`-revert`)  
+- **Revert substitution** (`-revert` / `-e`)  
   - Swaps search and replace values
 
-- **Delete** (`-delete`)  
+- **Delete** (`-delete` / `-d`)  
   - Removes lines matching the search pattern  
   - Useful for cleaning lists or rapidly filtering content
 
 ---
 
-### 🧩 Regex Features
+### Regex Features
 
-- **Enable RegEx mode** (`-r`)  
+- **Enable RegEx mode** (`-regEx` / `-r`)  
   - Interprets all search strings as .NET regular expressions
 
-- **Modifier flags** (`-flags "imsx..."` / `-modifier`)  
-  - Enables regex and passes flags directly to the .NET engine  
+- **Modifier flags** (`-flags "imsx..."` / `-m`)  
+  - Enables regex implicitly and passes flags directly to the .NET engine  
   - Example: `-m "imx"`
 
 - **Case-insensitive mode** (`-ignoreCase` / `-i`)  
@@ -164,18 +174,18 @@ These options are **optional** because the script attempts to infer which mode y
 
 ---
 
-### 📋 Input Processing
+### Input Processing
 
 - **Line-by-line mode** (default)  
   - Each line is treated as an independent expression
 
-- **Whole-file mode** (`-wholeFile`)  
+- **Whole-file mode** (`-wholeFile` / `-f`)  
   - Input is considered one single expression  
   - Useful for multi-line regex patterns or structural transformations
 
 ---
 
-### 💬 Interactive Mode
+### Interactive Mode
 
 - **Interactive prompt** (`-interactive` / `-ia`)  
   - Allows entering search/replace strings manually at runtime  
@@ -183,12 +193,12 @@ These options are **optional** because the script attempts to infer which mode y
 
 ---
 
-### 📤 Output Handling
+### Output Handling
 
-- **Write to file** (`-fileOutput` / `-write`)  
+- **Write to file** (`-w` / `-write`)  
   - Redirects output to a file instead of copying to clipboard
 
-- **Explicit filename** (`-saveAs <FILE>`)  
+- **Explicit filename** (`-saveAs <FILE>` / `-o <FILE>`)  
   - Custom filename  
   - A timestamp is always appended
 
@@ -198,26 +208,27 @@ These options are **optional** because the script attempts to infer which mode y
 
 ---
 
-### 🔁 Repetition & Looping
+### Repetition & Looping
 
-- **Endless loop mode** (`-endless`)  
+- **Endless loop mode** (`-endless` / `-8`)  
   - Repeats the selected operation indefinitely  
   - Intended for fullscreen or continuously updated applications
   - Requires manual termination
 
-- **Loop count** (`-loop <N>`)  
+- **Loop count** (`-loop <N>` / `-l <N>`)  
   - Execute the operation N times
+  - Overridden by `-endless`
 
-- **Timeout between loops** (`-timeout <SECONDS>`)  
+- **Timeout between loops** (`-timeout <SECONDS>` / `-t <SECONDS>` )  
   - Delays execution before exiting  
   - Negative values delay execution *before* running the action  
-  - Recommended when combining with `-endless`
+  - Recommended when combining with `-endless` or `-loop <N>`
 
 ---
 
-### ⏳ Additional Behaviour
+### Additional Behaviour
 
-- **Require confirmation before exit** (`-confirm` / `-persist`)  
+- **Require confirmation before exit** (`-persist` / `-p`)  
   - Keeps the terminal open until the user presses Enter  
   - Useful for manual inspection of output
 
@@ -225,9 +236,9 @@ These options are **optional** because the script attempts to infer which mode y
   - Prints timing information for pattern application and script execution
 
 - **Statistics** (`-stats` / `-n`)  
-  - Displays counts, matches, transformations, deletions, etc.
+  - Displays counts of matches, counts occurence of various text-properties guided by regex
 
-- **Help / Usage overview** (`-help` / `-usage`)  
+- **Help / Usage overview** (`-help` / `-h`)  
   - Displays all flags and usage instructions
 
 ---
@@ -267,6 +278,9 @@ If you still want to be extra cautious, you can **enforce linear‑time matching
 
 - **ReDoS / catastrophic backtracking**: Certain regex patterns can cause exponential runtimes on specific inputs when backtracking is allowed.
 - **NonBacktracking mode**: Disables backtracking in the regex engine, resulting in **predictable, linear runtime**. This eliminates ReDoS risks but **restricts some advanced regex features** (e.g., patterns relying on backtracking constructs). If a pattern depends on such features, it may need to be simplified or rewritten.
+- For **trusted, local, one‑user scenarios** (default usage), standard regex behavior is fine.
+- For **maximum safety** or when using complex patterns, add `b` to your modifiers to enforce **NonBacktracking**.
+
 
 ### How to enable it
 
@@ -274,13 +288,6 @@ If you still want to be extra cautious, you can **enforce linear‑time matching
 - Example with your script’s modifier flag:
   - CLI: `-m b`
   - Combined with other flags (e.g., case‑insensitive + multiline + non‑backtracking): `-m imb`
-
-### Practical guidance
-
-- For **trusted, local, one‑user scenarios** (default usage), standard regex behavior is fine.
-- For **maximum safety** or when using complex patterns, add `b` to your modifiers to enforce **NonBacktracking**.
-- If a pattern stops working under NonBacktracking, consider simplifying it or removing constructs that rely on backtracking.
-
 
 
 ## Why PowerShell?
