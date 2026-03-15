@@ -131,6 +131,30 @@ All additional functional flags are categorized as extended capabilities:
 
 ---
 
+## Regex Modifier Table (`-m` / `-modifier` Flag)
+
+The following table lists all supported regex modifiers evaluated in the script:
+
+| Modifier | RegexOptions Enum Value        | Description |
+|---------|---------------------------------|-------------|
+| **n**   | `None`                          | No additional options enabled. Default behavior. |
+| **i**   | `IgnoreCase`                    | Case-insensitive matching. |
+| **m**   | `Multiline`                     | `^` and `$` match line start and line end instead of only the beginning/end of the entire input. |
+| **s**   | `Singleline`                    | The dot (`.`) also matches newline characters (`\n`). |
+| **x**   | `IgnorePatternWhitespace`       | Whitespace in the pattern is ignored; comments are allowed. |
+
+### Advanced / Exotic Options
+
+| Modifier | RegexOptions Enum Value        | Description |
+|---------|---------------------------------|-------------|
+| **e**   | `ExplicitCapture`               | Only named groups (e.g. `(?<name>...)`) are captured. |
+| **c**   | `Compiled`                      | Compiles the regex for improved performance when reused repeatedly. |
+| **u**   | `CultureInvariant`              | Culture‑invariant matching, ignoring locale-specific rules. |
+| **j**   | `ECMAScript`                    | Enables ECMAScript‑compatible regular expression behavior. |
+| **r**   | `RightToLeft`                   | Performs the match from right to left. |
+| **b**   | `NonBacktracking`               | Uses a non‑backtracking regex engine mode (faster, but with feature limitations). |
+
+
 ## Why PowerShell?
 
 Why PowerShell? Simple: because it’s *already there*.  
