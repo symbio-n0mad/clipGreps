@@ -154,6 +154,33 @@ The following table lists all supported regex modifiers evaluated in the script:
 | **r**   | `RightToLeft`                   | Performs the match from right to left. |
 | **b**   | `NonBacktracking`               | Uses a non‑backtracking regex engine mode (faster, but with feature limitations). |
 
+## Safety & Security
+
+> TL;DR: By default, this tool assumes trusted, user‑local input. If you want to be absolutely safe against ReDoS, enable **NonBacktracking** (`-m b`) to guarantee linear performance.
+
+This tool processes **only the current user’s input** (clipboard and/or local files you explicitly provide). Under this assumption, the risk of **Regular Expression Denial of Service (ReDoS)** or other super‑linear (exponential) matches is generally out of scope.
+
+If you still want to be extra cautious, you can **enforce linear‑time matching** by enabling the **NonBacktracking** engine mode via your regex modifiers. This guarantees **no catastrophic backtracking** and therefore avoids ReDoS scenarios.
+
+### What this means
+
+- **ReDoS / catastrophic backtracking**: Certain regex patterns can cause exponential runtimes on specific inputs when backtracking is allowed.
+- **NonBacktracking mode**: Disables backtracking in the regex engine, resulting in **predictable, linear runtime**. This eliminates ReDoS risks but **restricts some advanced regex features** (e.g., patterns relying on backtracking constructs). If a pattern depends on such features, it may need to be simplified or rewritten.
+
+### How to enable it
+
+- Use the `NonBacktracking` option in your modifier string (the script flag is `b`).
+- Example with your script’s modifier flag:
+  - CLI: `-m b`
+  - Combined with other flags (e.g., case‑insensitive + multiline + non‑backtracking): `-m imb`
+
+### Practical guidance
+
+- For **trusted, local, one‑user scenarios** (default usage), standard regex behavior is fine.
+- For **maximum safety** or when using complex patterns, add `b` to your modifiers to enforce **NonBacktracking**.
+- If a pattern stops working under NonBacktracking, consider simplifying it or removing constructs that rely on backtracking.
+
+
 
 ## Why PowerShell?
 
