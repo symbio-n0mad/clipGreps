@@ -62,72 +62,173 @@ You can achieve this easily using a **desktop shortcut** that launches PowerShel
 ---
 
 
+## All Features Explained (incl. Advanced / Implicit Behaviour)
 
-## All Features Explained (incl. Exotic / Advanced)
-All additional functional flags are categorized as extended capabilities:
+Below is a complete overview of all functional capabilities. Several options interact with each other and may implicitly activate related features. Unless noted otherwise, all options are **optional**, and the script attempts to **infer intent automatically**.
 
-- **Inline strings** may be provided as array
-  - E. g. `-search "foo","bar","baz"` `-replace "rea","lwo","rds"`
+---
 
-- **Case-insensitive mode** (`-ci`) for search patterns
+### 🔍 Search & Replace Inputs
 
-- **Grep** (`-grep`) supports context
-  - (`-A "2"`) lines following the match to print
-  - (`-B "3"`) lines before the match to print
-  - (`-C "1"`) lines to print before and after the match
+- **Inline search strings** (`-searchText`)  
+  - Provided as a single string or an array  
+    - Example: `-st "foo","bar","baz"`
+  
+- **Inline replacement strings** (`-replaceText`)  
+  - Single string or array  
+    - Example: `-rt "one","two","three"`
 
-- **RegEx** mode (`-r`) available
-  - All input search patterns are interpreted as RegEx (.NET flavor)
-  - RegEx options may be provided as flags `-flags "mi"`
+- **Search file** (`-searchFile <FILE>`)  
+  - May be provided multiple times  
+  - Each line is treated as one search pattern  
+  - Empty lines are **deprecated**
 
-- Interactive **prompt** for single **search/replace** strings (`-interactive`)
-    - Provide search/replace strings at program start, on the fly.
-
-- Reading **input** files **line by line**, counting every line as single expression by default.
-    - Instead whole files may be parsed as a single expression (`-wholeFile`)
-
-- Explicit **search files** (`-searchFile <FILENAME>`)  
-  - May be provided as an array
-  - Empty lines **deprecated**
-
-- Explicit **replace files** (`-replaceFile <FILENAME>`)  
-  - May be provided as an array
+- **Replace file** (`-replaceFile <FILE>`)  
+  - May be provided multiple times  
+  - Each line corresponds to a replacement pattern  
   - **Empty patterns = deletions**
 
-- Explicit **search folder** (`-searchFolder <FOLDERNAME>`)  
-  - May be provided as an array
-  - Only *.txt files are used
-  - Files are sorted alphabetical prior to usage
-  - File count must match with replace folder file count
-  - Empty files **deprecated**
+- **Search folder** (`-searchFolder <FOLDER>`)  
+  - Accepts one or multiple directories  
+  - Uses only `*.txt` files  
+  - Files are sorted alphabetically  
+  - File count must match `-replaceFolder`  
+  - Empty files are **deprecated**
 
-- Explicit **replace folder** (`-replaceFolder <FOLDERNAME>`) 
-  - May be provided as an array 
-  - Only *.txt files are used
-  - Files are sorted alphabetical prior to usage
-  - File count has to match search folder file count
+- **Replace folder** (`-replaceFolder <FOLDER>`)  
+  - Identical behaviour as search folder  
   - **Empty patterns = deletions**
 
-- Can **output to file** instead of clipboard (`-write`)  
-  - If no filename is given, a **timestamp** is used  
-  - Optional explicit filename (`-saveAs <FILENAME>`)
-    - Timestamp gets added anyway
-    
-- **Repeated** application of chosen action in an **endless loop** (`-endless`)
-    - Timeout for every loop (`-loopDelay <SECONDS>`, optional but _recommended_)
-    - Intended for fullscreen applications
-    - Forcefully termination of script obligatory
+---
 
-- **Time delay** before script ends (`-timeout <SECONDS>`, decimals allowed)  
-  - Prolong your peeking time as desired
-  - Negative values introduce a **delay _before_ execution** 
-    - Intended for fullscreen applications
+### 🗺 Mapping Files (Lazy / Mapping Mode)
 
-- **Exit requires confirmation** (`-confirm`)
-    - Terminal stays open until pressing enter 
-    - For arbitrary/variable peeking time, terminal might be closed after output is evaluated 
+- **Mapping file** (`-mappingFile`, aliases: `-lazyFile`, `-lazyPairs`)  
+  - Contains *pairs* of search → replace entries  
+  - Automatically enables **substitution mode** (`-substitute`)  
+  - Ideal for large lists of mappings where maintaining separate search/replace files is inconvenient  
+  - Ensures consistent pairing without having to manage file order manually  
+  - Lines typically follow the format:  
+    ```
+    searchValue => replaceValue
+    ```
 
-- Display **all** available **flags** (`-h` / `-usage`)
+---
+
+### 🤖 Implicit Behaviour
+
+Several features are triggered automatically when certain flags or inputs are used:
+
+| Condition | Implicit Action |
+|----------|------------------|
+| `-A`, `-B` or `-C` provided | Enables **grep mode** (`-grep`) |
+| `-flags` / `-modifier` used | Enables **regex mode** (`-r`) |
+| `-mappingFile` used | Enables **substitution** |
+| `-revert` used | Enables **substitution** |
+| No search/replace arguments given | Activates **interactive mode** (`-interactive`) |
+
+---
+
+### 🧵 Mode Selection: Extract / Replace / Delete
+
+These options are **optional** because the script attempts to infer which mode you intended based on the provided inputs. However, you may explicitly combine them if needed.
+
+- **Grep / Extract match** (`-grep`)  
+  - Prints only matching lines (or extracted text)  
+  - Context options available (`-A`, `-B`, `-C`)
+
+- **Substitution** (`-substitute`)  
+  - Performs search & replace  
+  - Activated automatically through mapping files or `-revert`
+
+- **Revert substitution** (`-revert`)  
+  - Swaps search and replace values
+
+- **Delete** (`-delete`)  
+  - Removes lines matching the search pattern  
+  - Useful for cleaning lists or rapidly filtering content
+
+---
+
+### 🧩 Regex Features
+
+- **Enable RegEx mode** (`-r`)  
+  - Interprets all search strings as .NET regular expressions
+
+- **Modifier flags** (`-flags "imsx..."` / `-modifier`)  
+  - Enables regex and passes flags directly to the .NET engine  
+  - Example: `-m "imx"`
+
+- **Case-insensitive mode** (`-ignoreCase` / `-i`)  
+  - Works for both literal and regex patterns
+
+---
+
+### 📋 Input Processing
+
+- **Line-by-line mode** (default)  
+  - Each line is treated as an independent expression
+
+- **Whole-file mode** (`-wholeFile`)  
+  - Input is considered one single expression  
+  - Useful for multi-line regex patterns or structural transformations
+
+---
+
+### 💬 Interactive Mode
+
+- **Interactive prompt** (`-interactive` / `-ia`)  
+  - Allows entering search/replace strings manually at runtime  
+  - Automatically activated when no search/replace arguments are provided
+
+---
+
+### 📤 Output Handling
+
+- **Write to file** (`-fileOutput` / `-write`)  
+  - Redirects output to a file instead of copying to clipboard
+
+- **Explicit filename** (`-saveAs <FILE>`)  
+  - Custom filename  
+  - A timestamp is always appended
+
+- **Default filename**  
+  - When no name is provided, a timestamp is used automatically
+  - Even with provided filename, a timestamp is added
+
+---
+
+### 🔁 Repetition & Looping
+
+- **Endless loop mode** (`-endless`)  
+  - Repeats the selected operation indefinitely  
+  - Intended for fullscreen or continuously updated applications
+  - Requires manual termination
+
+- **Loop count** (`-loop <N>`)  
+  - Execute the operation N times
+
+- **Timeout between loops** (`-timeout <SECONDS>`)  
+  - Delays execution before exiting  
+  - Negative values delay execution *before* running the action  
+  - Recommended when combining with `-endless`
+
+---
+
+### ⏳ Additional Behaviour
+
+- **Require confirmation before exit** (`-confirm` / `-persist`)  
+  - Keeps the terminal open until the user presses Enter  
+  - Useful for manual inspection of output
+
+- **Benchmarking** (`-benchmark` / `-bm`)  
+  - Prints timing information for pattern application and script execution
+
+- **Statistics** (`-stats` / `-n`)  
+  - Displays counts, matches, transformations, deletions, etc.
+
+- **Help / Usage overview** (`-help` / `-usage`)  
+  - Displays all flags and usage instructions
 
 ---
 
