@@ -168,6 +168,7 @@ These options are **optional** because the script attempts to infer which mode y
 - **Modifier flags** (`-flags "imsx..."` / `-m`)  
   - Enables regex implicitly and passes flags directly to the .NET engine  
   - Example: `-m "imx"`
+  - For available options see table below
 
 - **Case-insensitive mode** (`-ignoreCase` / `-i`)  
   - Works for both literal and regex patterns
