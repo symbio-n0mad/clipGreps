@@ -10,7 +10,9 @@ param (
     [Alias("searchFolder", "sdir", "sd")]
     [string[]]$searchFolderPath = @(),   
     [Alias("replaceFolder", "rdir", "rd")]          
-    [string[]]$replaceFolderPath = @(),
+    [string[]]$replaceFolderPath = @(),  
+    [Alias("pairsFile", "lazyPairs", "lazyFile", "mf", "lf")]          
+    [string[]]$mappingFile = @(),
     [Alias("readInput", "ri", "ia")] 
     [switch]$interactive,
     [Alias("wait", "delay", "t", "sleep")] 
@@ -535,6 +537,42 @@ function get-SearchnReplaceExpressions() {
             }
         }
     }
+
+    # Read lazy file
+    if ($mappingFile -and $mappingFile.Count -gt 0) {
+        foreach ($path in $mappingFile) {
+            if ([string]::IsNullOrWhiteSpace($path)) { continue }
+            # If it's a directory
+            if (Test-Path $path -PathType Container) {
+                # Take all files in top-level directory (no subfolders)
+                $files = Get-ChildItem -Path $path -File
+
+                foreach ($file in $files) {
+                    $lines = Get-Content $file.FullName
+                    for ($i = 0; $i -lt $lines.Count; $i++) {
+                        if ($i % 2 -eq 0) {
+                            $searchLinesInside  += $lines[$i]
+                        } else {
+                            $replaceLinesInside += $lines[$i]
+                        }
+                    }
+                }
+            # If it's a file
+            } elseif (Test-Path $path -PathType Leaf) {
+                $lines = Get-Content $path
+                for ($i = 0; $i -lt $lines.Count; $i++) {
+                    if ($i % 2 -eq 0) {
+                        $searchLinesInside  += $lines[$i]
+                    } else {
+                        $replaceLinesInside += $lines[$i]
+                    }
+                }
+            } else {
+                Write-Warning "Path not found: $path"
+            }
+        }
+    }
+
  
     return [PSCustomObject]@{
         SearchFor  = $searchLinesInside
@@ -583,6 +621,13 @@ function show-Stats() {
             # math symbols count
             Write-Host "Math symbols count (regex: `"\p{Sm}`"): " -NoNewline 
             Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\p{Sm}", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta         
+            # url count
+            Write-Host "URL count (regex: `"t\bhttps?://[^\s)`"]+`"): " -NoNewline 
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\bhttps?://[^\s)`"]+", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta         
+            # Integer-like numbers count, optional sign
+            # e-mail count
+            Write-Host "E-mail count (regex: `"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b`"): " -NoNewline 
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta         
             # Integer-like numbers count, optional sign
             Write-Host "Integer-like numbers count (regex: `"[-+]?\d+`"): " -NoNewline 
             Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "[-+]?\d+", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor Magenta
@@ -604,6 +649,9 @@ function show-Stats() {
             #field count
             Write-Host "Space separated fields, like words (no options, regex: `"\s*\S+\s*`"): " -NoNewline 
             Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\s*\S+\s*", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor Magenta
+            #multiple spaces count
+            Write-Host "Multiple spaces count (regex: `" {2,}`"): " -NoNewline 
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, " {2,}", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor Magenta
             # Line count
             Write-Host "Line count (no options, regex: `"\r?\n`"): " -NoNewline 
             Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\r?\n", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor DarkBlue
@@ -655,8 +703,10 @@ if ( $Help.IsPresent ) {
 }
 if (
     -not $interactive -and
+    -not $stats -and
     (-not $searchFolderPath -or $searchFolderPath.Count -eq 0) -and    # No folder         and
     (-not $searchFilePath -or $searchFilePath.Count -eq 0) -and      # No file           and
+    (-not $mappingFile -or $mappingFile.Count -eq 0) -and      # No mapping file   and
     (-not $searchText -or $searchText.Count -eq 0)  # No CLI args
 ) {
     $interactive = $true
@@ -667,6 +717,7 @@ $A += $C
 $B += $C
 if ($A -gt 0 -or $B -gt 0) {$extractMatch = $true}
 if ($revert) { $substitute = $true } # Revert implies substitute, because it is a special case of substitution
+if ($mappingFile -and $mappingFile.Count -gt 0) { $substitute = $true } # LazyFile implies substitute
 
 $runNr = 0
 if ($loop -lt 1) {$loop = 1} #avoid empty endless loop in case of wrong user input
@@ -743,7 +794,7 @@ do { # (Endless) loop start
             # $allMatches = @()
             $allMatches = [System.Collections.Generic.List[System.Text.RegularExpressions.Match]]::new()
 
-            $sw = [System.Diagnostics.Stopwatch]::StartNew()
+            $sw = [System.Diagnostics.Stopwatch]::StartNew()  # Stopwatch for benchmarking grep time
             foreach ($pattern in $searchLines) {
                 if (-not $r) { # Literal search, not regex: escape special characters
                     $pattern = [regex]::Escape($pattern)
@@ -831,7 +882,7 @@ do { # (Endless) loop start
                 return 
             }
 
-            $sw = [System.Diagnostics.Stopwatch]::StartNew()
+            $sw = [System.Diagnostics.Stopwatch]::StartNew()  # Stopwatch for benchmarking substitution time
             # Main processing loop: iterate search/replace lines
             for ($var = 0; $var -lt $searchLines.Count; $var++) {  # for every entry in searchLines-array (contains search all patterns)
                 $searchContent = $searchLines[$var]
