@@ -18,7 +18,7 @@ param (
     [Alias("wait", "delay", "t", "sleep")] 
     [string]$timeout = "0",
     [Alias("modifier", "m")] 
-    [string]$flags = "",
+    [string]$flags = $null,
     [Alias("h", "hint", "usage")]          
     [switch]$Help = $false,
     [Alias("ignoreCase", "ic", "noCase", "i")]          
@@ -391,6 +391,7 @@ function Get-TextMetricsPs5 {
 }
 
 function Read-Input {
+    # Write-Host "read-input started"
     <# mostly copilot
         Purpose:
           Interactive input reader that decides between Substitution, Grep (text filter), or Deletion,
@@ -408,6 +409,7 @@ function Read-Input {
     if (-not $Script:extractMatch -and -not $Script:substitute -and -not $Script:delete) {
         $opCaption = 'Missing CLI options, please specify your intention'
         $opMessage = 'Choose what you want to do:'
+        $readFlagsMessage = "Enter regex flags (imsx ecujrb, 'i' ignore case, 'm' multiline, etc.; empty for none) "
         $opChoices = @(
             [System.Management.Automation.Host.ChoiceDescription]::new('&Substitution', 'Perform a substitution')
             [System.Management.Automation.Host.ChoiceDescription]::new('&Grep (text filter)', 'Filter lines by a regex or plain text')
@@ -434,12 +436,16 @@ function Read-Input {
             }
         }
     }
-
+    # Write-Host "script:flags =$Script:flags"
+    # if ("" -eq $Script:flags) {
+    #     Write-Host "null no flags"
+    # }
     # ---- Regex mode selection (only if \$Script:r is not already true) ----
     if (-not $Script:r) {
+        # Write-Host "not script:r"
         $rxCaption = 'Regular expression'
         $rxMessage = 'Enable regex for the input?'
-        $readFlagsMessage = "Enter regex flags (imsx ecujrb, 'i' ignore case, 'm' multiline, etc.; empty for none): "
+    
         $rxChoices = @(
             [System.Management.Automation.Host.ChoiceDescription]::new('&Literal Text', 'Use plain text (literal search)')
             [System.Management.Automation.Host.ChoiceDescription]::new('&Regex without flags', 'Enable regex without flags')
@@ -463,7 +469,8 @@ function Read-Input {
             }
         }
     }
-    elseif ($Script:r -and ( $null -eq $Script:flags )) {
+    elseif ($Script:r -and ( "" -eq $Script:flags )) {
+        # Write-Host "script:r aber no flags"
         # if regex enabled but no flags provided enter flags now
         $flags = Read-Host $readFlagsMessage
     }
@@ -471,9 +478,9 @@ function Read-Input {
     # ---- Read search text ----
     $search = ""
     if ($Script:r) {
-        $search = Read-Host "Please enter search text (.NET regex syntax allowed):"
+        $search = Read-Host "Please enter search text (.NET regex syntax allowed)"
     } else {
-        $search = Read-Host "Please enter search text:"
+        $search = Read-Host "Please enter search text"
     }
     # ---- Read replacement when applicable ----
     # For Grep and Deletion, replacement is not applicable -> $null
@@ -482,7 +489,7 @@ function Read-Input {
         if ($Script:r) {
             Write-Host "You can reference capture groups via `$1, `$2, etc."
         }
-        $replace = Read-Host "Please enter replacement text:"
+        $replace = Read-Host "Please enter replacement text"
     }
 
     # ---- Prepare return ----
@@ -911,8 +918,9 @@ do { # (Endless) loop start
             $replaceLines += '' # because empty lines are not recognized as lines, array will be filled with empty entries here for every empty line
         }
         if ($delete) {
+            $replaceLines = @()  # For deletion, replacement is not applicable, set to empty array
             foreach ($searchLine in $searchLines) {
-                $replaceLines = ''
+                $replaceLines += ''
             }
         }
         if ($revert) { 
