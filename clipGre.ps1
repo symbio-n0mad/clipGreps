@@ -53,6 +53,8 @@ param (
     [switch]$substitute,
     [Alias("count", "statistics", "n")]    
     [switch]$stats,
+    [Alias("raw", "onlyMatches", "plainGrep", "pg")]    
+    [string]$plain,
     [Alias("switch", "rev", "exchange", "e")]    
     [switch]$revert
 )
@@ -68,16 +70,49 @@ function wait-Timeout([int]$additionalTime = 0) {
 
 function confirm-exit() {
     if ($persist){
-        if ($loop -gt 1 ) {
-           Write-Host "Run nr. $runNr`: " -NoNewline
-        }
+        # if ($loop -gt 1 ) {
+        #    Write-Host "Run nr. $runNr`: " -NoNewline
+        # }
         Write-Host "Press Enter to end run..."
         [void][System.Console]::ReadLine()
     }
 }
 
 function Get-StringLineInfo {
-    # llm
+    # copilot
+    <#
+    .SYNOPSIS
+    Returns detailed line and position metadata for a substring inside a larger text.
+
+    .DESCRIPTION
+    Computes positional information (start/end positions, start/end line numbers,
+    and total line count) for a selected substring within a given text.  
+    The function scans the text for newline characters and derives line boundaries
+    purely from character indices. This is useful when analyzing match objects, 
+    editor selections, or text regions that need to be mapped to their line context.
+
+    .PARAMETER Text
+    The full input text in which position and line data should be evaluated.
+
+    .PARAMETER Position
+    The zero-based character index where the target substring begins.
+
+    .PARAMETER Length
+    The length (in characters) of the substring for which line metadata is requested.
+
+    .OUTPUTS
+    PSCustomObject
+    A structured object containing:
+    - StartPosition: Beginning index of the substring
+    - EndPosition: Ending index (exclusive)
+    - StartLine: Line number where the substring begins (1-based)
+    - EndLine: Line number where the substring ends (1-based)
+    - TotalLines: Total number of lines in the input text
+
+    .EXAMPLE
+    PS> Get-StringLineInfo -Text $content -Position 42 -Length 12
+    Returns positional and line-number metadata for the 12-character region starting at index 42.
+    #>
     param(
         [Parameter(Mandatory)]
         [string]$Text,
@@ -112,7 +147,48 @@ function Get-StringLineInfo {
     }
 }
 function Get-CharacterMap {
-    # llm
+    # copilot
+    <#
+    .SYNOPSIS
+    Generates a frequency map of all Unicode text elements in a string.
+
+    .DESCRIPTION
+    Enumerates grapheme clusters (full Unicode text elements, not individual UTF-16 code units)
+    inside the input text and computes how often each element occurs.  
+    The function supports optional sorting (by character or descending count), and can visualize
+    whitespace characters using special symbols for debugging or text inspection.  
+    It also reports Unicode codepoints for multi-code-unit characters such as emojis,
+    diacritics, and surrogate pairs.
+
+    .PARAMETER Text
+    The input string whose Unicode elements should be analyzed.
+
+    .PARAMETER SortBy
+    Specifies the ordering of the output.  
+    Accepted values:
+    - "Count": Sort descending by frequency (default)
+    - "Char": Sort lexicographically by the text element itself
+
+    .PARAMETER ShowWhitespace
+    If supplied, common whitespace characters (space, tab, carriage return, newline)
+    are replaced with visible glyphs (␠, ␉, ␍, ␊) in the output table.
+
+    .OUTPUTS
+    String
+    A formatted table showing:
+    - Character (or visible whitespace glyph)
+    - Count of occurrences
+    - Percentage of total graphemes
+    - Unicode codepoints (handles multi-code-unit characters)
+
+    .EXAMPLE
+    PS> Get-CharacterMap -Text "aä🙂🙂" -ShowWhitespace
+    Displays counts and codepoints for all grapheme clusters, including emojis and diacritics.
+
+    .EXAMPLE
+    PS> Get-CharacterMap -Text $content -SortBy Char
+    Sorts the map alphabetically by grapheme.
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [string]$Text,
@@ -191,7 +267,50 @@ function Get-CharacterMap {
 }
 
 function Get-TextMetricsPs5 {
-    # llm
+    # copilot
+    <#
+    .SYNOPSIS
+    Computes detailed Unicode and encoding-related metrics for a given string.
+
+    .DESCRIPTION
+    Analyzes a text string and returns multiple metrics related to its internal
+    Unicode structure and encoding footprint. This includes UTF‑8 and UTF‑16 byte
+    sizes, UTF‑16 code unit count, Unicode scalar values (code points), grapheme
+    clusters (visual characters), and ASCII‑only diagnostics.
+
+    The function correctly accounts for surrogate pairs when counting code points
+    and uses .NET's StringInfo API to count user-perceived characters (graphemes).
+    It is useful for debugging encoding issues, measuring text payload sizes, and
+    distinguishing between ASCII and multibyte Unicode content—especially in
+    Windows PowerShell 5 where Unicode handling can be subtle.
+
+    .PARAMETER Text
+    The input string to analyze. The text may contain arbitrary Unicode characters,
+    including surrogate pairs, emoji, non‑ASCII symbols, or combining sequences.
+
+    .OUTPUTS
+    PSCustomObject
+    An object with the following fields:
+
+    - UTF8_Bytes        : Number of bytes required to encode the string in UTF‑8.
+    - UTF16_Bytes       : Number of bytes required for UTF‑16 (little-endian).
+    - CharUnits         : Count of UTF‑16 code units (`[string].Length`).
+    - CodePoints        : Count of Unicode scalar values (surrogate‑aware).
+    - Graphemes         : Count of user‑perceived characters (using StringInfo).
+    - ASCII_CharCount   : Number of characters in the ASCII range U+0000–U+007F.
+    - Contains_NonASCII : Boolean indicating whether the string contains characters
+                        outside the ASCII range.
+
+    .EXAMPLE
+    PS> Get-TextMetricsPs5 -Text "Hi🙂"
+    Returns byte sizes, code unit count, code points, and grapheme information for
+    a mixed ASCII + emoji string.
+
+    .EXAMPLE
+    PS> Get-TextMetricsPs5 -Text $content
+    Analyzes the full text content from a file or clipboard and reports Unicode
+    structure details useful for debugging encoding issues.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$Text
@@ -272,7 +391,7 @@ function Get-TextMetricsPs5 {
 }
 
 function Read-Input {
-    <# llm
+    <# mostly copilot
         Purpose:
           Interactive input reader that decides between Substitution, Grep (text filter), or Deletion,
           and optionally enables regex (with or without flags). Returns a PSCustomObject
@@ -320,6 +439,7 @@ function Read-Input {
     if (-not $Script:r) {
         $rxCaption = 'Regular expression'
         $rxMessage = 'Enable regex for the input?'
+        $readFlagsMessage = "Enter regex flags (imsx ecujrb, 'i' ignore case, 'm' multiline, etc.; empty for none): "
         $rxChoices = @(
             [System.Management.Automation.Host.ChoiceDescription]::new('&Literal Text', 'Use plain text (literal search)')
             [System.Management.Automation.Host.ChoiceDescription]::new('&Regex without flags', 'Enable regex without flags')
@@ -331,45 +451,42 @@ function Read-Input {
         switch ($rx) {
             0 {
                 $Script:r = $false
-                $Script:flags = ""
+                $flags = ""
             }
             1 {
                 $Script:r = $true
-                $Script:flags = ""
+                $flags = ""
             }
             2 {
                 $Script:r = $true
-                $Script:flags = Read-Host "Enter regex flags (e.g., 'i' ignore case, 'm' multiline; leave empty for none)"
-                if ($null -eq $Script:flags) { $Script:flags = "" }
+                $flags = Read-Host $readFlagsMessage
             }
         }
     }
-    elseif ($Script:r -and ($Script:flags -eq "")) {
-        # Backward-compatible: if regex is already enabled but no flags were provided, allow entering flags now.
-        $maybeFlags = Read-Host "Enter regex flags (e.g., 'i' ignore case, 'm' multiline; leave empty for none)"
-        if ($null -ne $maybeFlags) { $Script:flags = $maybeFlags }
+    elseif ($Script:r -and ( $null -eq $Script:flags )) {
+        # if regex enabled but no flags provided enter flags now
+        $flags = Read-Host $readFlagsMessage
     }
 
     # ---- Read search text ----
     $search = ""
     if ($Script:r) {
-        $search = Read-Host "Please enter search text (.NET regex syntax allowed)"
+        $search = Read-Host "Please enter search text (.NET regex syntax allowed):"
     } else {
-        $search = Read-Host "Please enter search text"
+        $search = Read-Host "Please enter search text:"
     }
-
     # ---- Read replacement when applicable ----
     # For Grep and Deletion, replacement is not applicable -> $null
-    $replace = ''
+    # $replace = ''
     if (-not $Script:delete -and -not $Script:extractMatch) {
         if ($Script:r) {
             Write-Host "You can reference capture groups via `$1, `$2, etc."
         }
-        $replace = Read-Host "Please enter replacement text (empty = gone)"
+        $replace = Read-Host "Please enter replacement text:"
     }
 
     # ---- Prepare return ----
-    $flags = $Script:flags
+    # $flags = $Script:flags
     return [PSCustomObject]@{
         Flags   = $flags
         Search  = $search
@@ -385,7 +502,7 @@ function write-File([string]$content) {
         $nameStamp = "$runNr-$nameStamp"
     }
 
-    # Check, for content of $fileName = 
+    # Check, for content of $fileName 
     if ([string]::IsNullOrWhiteSpace($fileName)) {
         # empty -> use generic name
         $fileName = "Output_$nameStamp.txt"
@@ -396,17 +513,19 @@ function write-File([string]$content) {
         $fileName = "${baseName}_$nameStamp.txt"
     }
 
-    # Save file = 
+    # Save file 
     $content | Out-File -FilePath $fileName -Encoding UTF8
-    if ($loop -gt 1 ) {
-        Write-Host "Run nr. $runNr`: " -NoNewline
+    if (-not $plain){
+        if ($loop -gt 1 ) {
+            Write-Host "Run nr. $runNr`: " -NoNewline
+        }
+        Write-Output "Results saved in file: $fileName"
     }
-    Write-Output "Results saved in file: $fileName"
 }
 
 function Show-Helptext {  # self descriptive: print help text
     Write-Host ""
-    Write-Host "clipGre.ps1 – Search, extract and replace text from clipboard or files"
+    Write-Host "clipGre.ps1 - Search, extract and replace text from clipboard or files"
     Write-Host ""
     Write-Host "Basic example:"
     Write-Host "  clipGre.ps1 -search 'oldValue' [-replace 'newValue']"
@@ -459,7 +578,9 @@ function Show-Helptext {  # self descriptive: print help text
     Write-Host "  -h  / -help                  Show this help text"
     Write-Host ""
 }
+
 function set-RegexFlags() {
+    # partly copilot (boilerplate)
     foreach ($char in $script:flags.ToCharArray()) {  # Convert flag string to regex options
         switch ($char) {
             'n' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::None}
@@ -494,7 +615,9 @@ function set-RegexFlags() {
     }
 }
 
+
 function get-SearchnReplaceExpressions() {
+    # partly copilot (small parts)
     $searchLinesInside  = @()  # initialize arrays
     $replaceLinesInside = @()  # empty arrays
 
@@ -557,7 +680,6 @@ function get-SearchnReplaceExpressions() {
             }
         }
     }
-
     # Read lazy file
     if ($mappingFile -and $mappingFile.Count -gt 0) {
         foreach ($path in $mappingFile) {
@@ -592,8 +714,6 @@ function get-SearchnReplaceExpressions() {
             }
         }
     }
-
- 
     return [PSCustomObject]@{
         SearchFor  = $searchLinesInside
         ReplaceWith = $replaceLinesInside
@@ -703,8 +823,7 @@ function show-Stats() {
 }
 
 
-
-#PROGRAM STARTS HERE
+#PROGRAM STARTS HERE (with evaluation of cli-options)
 
 $global:ProgramTimer = [System.Diagnostics.Stopwatch]::StartNew()
 if ($endless -and $fileOutput) {
@@ -761,14 +880,13 @@ do { # (Endless) loop start
         $runNr++
         $searchLines  = @()  # initialize arrays
         $replaceLines = @()  # empty arrays
-
         if ($interactive) {
             $userRead = Read-Input
+            $Script:flags = $userRead.Flags
             $regularOptions = set-RegexFlags
 
             $searchLines += $userRead.Search
             $replaceLines += $userRead.Replace
-            $flags = $userRead.Flags
             $regexOptions = $regexOptions -bor $regularOptions.Options
         }
         if ($timeout.Contains("-")) {  # Negative values will yield waiting time at program start
@@ -801,7 +919,10 @@ do { # (Endless) loop start
             $searchLines, $replaceLines = $replaceLines, $searchLines  # Swap search and replace lines
         }
         if ($loop -gt 1 ) {
-            Write-Host "-----------" -ForegroundColor DarkCyan
+            Write-Host "-----------------------" -ForegroundColor DarkCyan
+            if($runNr -gt 1) {
+                Write-Host "-----------------------" -ForegroundColor DarkCyan
+            }
             Write-Host "Begin run $runNr" -BackgroundColor DarkGray -ForegroundColor DarkCyan
         }
 
@@ -809,7 +930,6 @@ do { # (Endless) loop start
         if ($extractMatch -or (-not $delete -and -not ($replaceLines | Where-Object { $_ -ne $null -and $_ -ne '' }) -and ($searchLines | Where-Object { $_ -ne $null -and $_ -ne '' }))) {  # test for grep flag
             $lines = $clipboardText -split "`n", -1
             $writeOut = New-Object System.Text.StringBuilder  # StringObject for output as textfile
-
             $matchCount = 0
             # $allMatches = @()
             $allMatches = [System.Collections.Generic.List[System.Text.RegularExpressions.Match]]::new()
@@ -830,66 +950,78 @@ do { # (Endless) loop start
             $matchCount = $allMatches.Count  # Array count of all matches
             $allMatches = $allMatches | Sort-Object Index  # Sorting all matches by index for ordered processing
             foreach ($m in $allMatches) {
-                $newB = $B  # New name provides possibility to change value without loosing the information about lines to print
-                $newA = $A  # New name provides possibility to change value without loosing the information about lines to print
-                $matchMetaData = Get-StringLineInfo -Text $clipboardText -Position $m.Index -Length $m.Length
+                if ($plain) {
+                    $m.Groups[0].Value | Write-Host -ForegroundColor Red
+                    if ($fileOutput) {
+                        write-File($m.Groups[0].Value.ToString())
+                        $null = $writeOut.AppendLine($m.Groups[0].Value)  # Append to output string
+                    }
+                }
+                else {
+                    $newB = $B  # New name provides possibility to change value without loosing the information about lines to print
+                    $newA = $A  # New name provides possibility to change value without loosing the information about lines to print
+                    $matchMetaData = Get-StringLineInfo -Text $clipboardText -Position $m.Index -Length $m.Length
 
-                Write-Host "Line " -NoNewline
-                Write-Host "$($matchMetaData.StartLine)" -NoNewline -ForegroundColor Yellow
-                Write-Host ", matched: `"" -NoNewline
-                $actValue = $m.Groups[0].Value
-                $actValue = $actValue.Replace("`r","").Replace("`n","")  # to avoid disturbed output remove crlf
-                Write-Host "$actValue" -ForegroundColor Red -NoNewline
-                Write-Host "`" at index " -NoNewline
-                Write-Host "$($m.Index)" -ForegroundColor Cyan -NoNewline
-                Write-Host " with length " -NoNewline
-                Write-Host "$($m.Length)" -ForegroundColor Blue -NoNewline
-                Write-Host ":"
+                    Write-Host "Line " -NoNewline
+                    Write-Host "$($matchMetaData.StartLine)" -NoNewline -ForegroundColor Yellow
+                    Write-Host ", matched: `"" -NoNewline
+                    $actValue = $m.Groups[0].Value
+                    $actValue = $actValue.Replace("`r","").Replace("`n","")  # to avoid disturbed output remove crlf
+                    Write-Host "$actValue" -ForegroundColor Red -NoNewline
+                    Write-Host "`" at index " -NoNewline
+                    Write-Host "$($m.Index)" -ForegroundColor Cyan -NoNewline
+                    Write-Host " with length " -NoNewline
+                    Write-Host "$($m.Length)" -ForegroundColor Blue -NoNewline
+                    Write-Host ":"
 
-                $addText = ""
-                if ($loop -gt 1 ) {
-                    $addText = "Run $runNr. "
-                }
-                if ($benchmark) {
-                    $addText = "$addText$grepElapsDesc"
-                }
-                   
-                $null = $writeOut.AppendLine("$($addText)Line $($matchMetaData.StartLine), matched: `"$($m.Groups[0].Value)`" at index $($m.Index) with length $($m.Length):`n")  # Append to output string
-                while(($matchMetaData.StartLine - $newB) -lt 1 ) {  # decrement B if out of bounds, no negative line numbers are possible
-                    $newB--
-                }
+                    $addText = ""
+                    if ($loop -gt 1 ) {
+                        $addText = "Run $runNr. "
+                    }
+                    if ($benchmark) {
+                        $addText = "$addText$grepElapsDesc"
+                    }
+                    
+                    $null = $writeOut.AppendLine("$($addText)Line $($matchMetaData.StartLine), matched: `"$($m.Groups[0].Value)`" at index $($m.Index) with length $($m.Length):`n")  # Append to output string
+                    while(($matchMetaData.StartLine - $newB) -lt 1 ) {  # decrement B if out of bounds, no negative line numbers are possible
+                        $newB--
+                    }
 
-                while(($matchMetaData.EndLine + $newA) -gt $matchMetaData.TotalLines ) {  # decrement A if out of bounds, because cannot show nonexisting line numbers
-                    $newA--
-                }
+                    while(($matchMetaData.EndLine + $newA) -gt $matchMetaData.TotalLines ) {  # decrement A if out of bounds, because cannot show nonexisting line numbers
+                        $newA--
+                    }
 
-                if($newB -gt 0) {
-                    $outputLines = $lines[($matchMetaData.StartLine - $newB - 1)..($matchMetaData.StartLine -1-1 )]  # Slice array to yield lines before match
-                    $outputLines | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }  # Append and print
+                    if($newB -gt 0) {
+                        $outputLines = $lines[($matchMetaData.StartLine - $newB - 1)..($matchMetaData.StartLine -1-1 )]  # Slice array to yield lines before match
+                        $outputLines | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }  # Append and print
+                    }
+                    $lines[($matchMetaData.StartLine-1)..($matchMetaData.EndLine-1)] | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }  # Append and print match lines
+                    if($newA -gt 0) {
+                        $outputLines = $lines[($matchMetaData.EndLine)..($matchMetaData.EndLine - 1 + $newA )]  # Slice array to yield lines after match
+                        $outputLines | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }  # Append and print
+                    }
+                    "-" * 50
+                    Write-Host ""  # empty line / CRLF
+                    $null = $writeOut.AppendLine("")  # empty line / CRLF # $null supresses output
+                    if ($matchCount -eq 0) {
+                        Write-Host "No matches at all" -ForegroundColor Yellow
+                    }
+                    else {
+                        Write-Host "Count of all matches is " -NoNewline
+                        Write-Host " $matchCount " -ForegroundColor Green -BackgroundColor DarkRed
+                        Write-Host ""
+                        if ($fileOutput) {
+                            write-File($writeOut.ToString())
+                        }
+                    }
+                    if ($benchmark) {
+                        Write-Host $grepElapsDesc
+                        Write-Host ""
+                    }
                 }
-                $lines[($matchMetaData.StartLine-1)..($matchMetaData.EndLine-1)] | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }  # Append and print match lines
-                if($newA -gt 0) {
-                    $outputLines = $lines[($matchMetaData.EndLine)..($matchMetaData.EndLine - 1 + $newA )]  # Slice array to yield lines after match
-                    $outputLines | ForEach-Object { $null = $writeOut.AppendLine($_); Write-Host $_ }  # Append and print
-                }
-                "-" * 50
-                Write-Host ""  # empty line / CRLF
-                $null = $writeOut.AppendLine("")  # empty line / CRLF # $null supresses output
-            }
-            if ($matchCount -eq 0) {
-                Write-Host "No matches at all" -ForegroundColor Yellow
-            }
-            else {
-                Write-Host "Count of all matches is " -NoNewline
-                Write-Host " $matchCount " -ForegroundColor Green -BackgroundColor DarkRed
-                Write-Host ""
-                if ($fileOutput) {
+                if ($fileOutput -and $plain) {
                     write-File($writeOut.ToString())
                 }
-            }
-            if ($benchmark) {
-                Write-Host $grepElapsDesc
-                Write-Host ""
             }
         }
 
