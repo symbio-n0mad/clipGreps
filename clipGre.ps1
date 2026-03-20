@@ -5,8 +5,8 @@ param (
     [string[]]$replaceText = @(),
     [Alias("modifier", "m")] 
     [string]$flags = "",
-    [Alias("pairsFile", "lazyPairs", "lazyFile", "mf", "lf")]          
-    [string[]]$mappingFile = @(),
+    [Alias("applyToFile", "readFromFile", "ff", "files")]    
+    [string[]]$fromFile = @(),
     [Alias("searchFile", "sfile", "sf")]
     [string[]]$searchFilePath = @(),    
     [Alias("replaceFile", "rfile", "rf")]          
@@ -14,7 +14,9 @@ param (
     [Alias("searchFolder", "sdir", "sd")]
     [string[]]$searchFolderPath = @(),   
     [Alias("replaceFolder", "rdir", "rd")]          
-    [string[]]$replaceFolderPath = @(),  
+    [string[]]$replaceFolderPath = @(),
+    [Alias("pairsFile", "lazyPairs", "lazyFile", "mf", "lf")]          
+    [string[]]$mappingFile = @(),
     [Alias("readInput", "ri", "ia")] 
     [switch]$interactive,
     [Alias("wait", "delay", "t", "sleep")] 
@@ -57,8 +59,6 @@ param (
     [switch]$stats,
     [Alias("raw", "onlyMatches", "plainGrep", "pg", "sep", "separator")]    
     [string]$plain,
-    [Alias("applyToFile", "readFromFile", "ff", "files")]    
-    [string[]]$fromFile = @(),  
     [Alias("switch", "rev", "exchange", "e")]    
     [switch]$revert
 )
