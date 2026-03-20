@@ -57,7 +57,7 @@ param (
     [switch]$stats,
     [Alias("raw", "onlyMatches", "plainGrep", "pg", "sep", "separator")]    
     [string]$plain,
-    [Alias("applyToFile", "readFromFile", "ff")]    
+    [Alias("applyToFile", "readFromFile", "ff", "files")]    
     [string[]]$fromFile = @(),  
     [Alias("switch", "rev", "exchange", "e")]    
     [switch]$revert
@@ -698,7 +698,7 @@ function get-SearchnReplaceExpressions() {
         }
     }
     # Read lazy file
-    if ($mappingFile -and $mappingFile.Count -gt 0) {
+    if ($mappingFile) {
         foreach ($path in $mappingFile) {
             if ([string]::IsNullOrWhiteSpace($path)) { continue }
             # If it's a directory
@@ -1006,6 +1006,10 @@ function Invoke-PathProcessor {
 
             try {
                 $text = Get-Content -Path $p -Raw -ErrorAction Stop
+                if($null -eq $text -or $text -eq '') {
+                     Write-Host "Empty file. No matches." -ForegroundColor Yellow 
+                     continue
+                }
                 if($callFilter) {
                     invoke-Textfilter -Text $text -searchLines $Script:searchLines
                 }
@@ -1023,9 +1027,9 @@ function Invoke-PathProcessor {
         # If folder
         if (Test-Path $p -PathType Container) {
 
-            $searchOpt = if ($Script:recurse) { "-Recurse" } else { "" }
-
-            $files = Get-ChildItem -Path $p @searchOpt -File -ErrorAction SilentlyContinue
+            # Only if switch -recurse is true recursion should occur
+            $files = Get-ChildItem -Path $p -Recurse:$Script:recurse -File -ErrorAction SilentlyContinue
+            # $files = Get-ChildItem -Path $p -File -Recurse:(!$noRecurse) -ErrorAction SilentlyContinue
 
             foreach ($file in $files) {
 
@@ -1040,8 +1044,8 @@ function Invoke-PathProcessor {
 
                 # Only printed if text-readable
                 Write-Host "`n=== FILE: $($file.FullName) ===" -ForegroundColor Green
-
-                invoke-Textfilter -Text $text -searchLines $searchLines
+                if($text -eq '' -or $null -eq $text) { Write-Host "Empty file. No matches." -ForegroundColor Yellow } 
+                else { invoke-Textfilter -Text $text -searchLines $searchLines }
             }
         }
     }
