@@ -3,6 +3,8 @@ param (
     [string[]]$searchText = @(),   
     [Alias("replace", "displace", "rt")]          
     [string[]]$replaceText = @(),
+    [Alias("modifier", "m")] 
+    [string]$flags = "",
     [Alias("pairsFile", "lazyPairs", "lazyFile", "mf", "lf")]          
     [string[]]$mappingFile = @(),
     [Alias("searchFile", "sfile", "sf")]
@@ -17,8 +19,6 @@ param (
     [switch]$interactive,
     [Alias("wait", "delay", "t", "sleep")] 
     [string]$timeout = "0",
-    [Alias("modifier", "m")] 
-    [string]$flags = "",
     [Alias("h", "hint", "usage")]          
     [switch]$Help = $false,
     [Alias("ignoreCase", "ic", "noCase", "i")]          
@@ -55,7 +55,7 @@ param (
     [switch]$substitute,
     [Alias("count", "statistics", "n")]    
     [switch]$stats,
-    [Alias("raw", "onlyMatches", "plainGrep", "pg")]    
+    [Alias("raw", "onlyMatches", "plainGrep", "pg", "sep", "separator")]    
     [string]$plain,
     [Alias("applyToFile", "readFromFile", "ff")]    
     [string[]]$fromFile = @(),  
@@ -497,6 +497,22 @@ function Read-Input {
 }
 
 function write-File([string]$content) {
+    <#
+    .SYNOPSIS
+    write-File(<STRING>)
+    
+    .DESCRIPTION
+    accepts string as argument and writes it to a file
+    
+    .PARAMETER content
+    Parameter description
+    
+    .EXAMPLE
+    An example
+    
+    .NOTES
+    General notes
+    #>
   # Timestamp generation
     $nameStamp = Get-Date -Format "yyyyMMdd_HHmmss"
 
@@ -970,6 +986,7 @@ function invoke-Textfilter() {
 }
 
 function Invoke-PathProcessor {
+    # co-operation-ilot partly
     param (
         [Parameter(Mandatory)]
         [string[]]$Paths,
@@ -1040,6 +1057,7 @@ if ($endless -and $fileOutput) {
 }
 if ($revert -and ($r -or $delete)) {
     Write-Warning "Only literal replacements (no regexes or deletions) can be meaningfully reverted, be sure you know what you're doing!"
+    [void][System.Console]::ReadLine()
 }
 # Show help text if necessary, then exit
 if ( $Help.IsPresent ) {
@@ -1059,31 +1077,24 @@ if (
     $interactive = $true
 }
 
-if (($PSBoundParameters.ContainsKey("fromFile") -eq $false) -and 
-    ($PSBoundParameters.ContainsKey("readFromFile") -eq $false) -and 
-    ($PSBoundParameters.ContainsKey("applyToFile") -eq $false) -and 
-    ($PSBoundParameters.ContainsKey("ff") -eq $false)){
-
-    $clipboardInput = $true
-}
-
 
 # $C is $A and $B combined, to reduce variable amount we sum them up here  # used for context w grepping
 $A += $C
 $B += $C
 $runNr = 0
-if ($A -gt 0 -or $B -gt 0) {$extractMatch = $true}
+if ($A -gt 0 -or $B -gt 0) { $extractMatch = $true }
 if ($revert) { $substitute = $true } # Revert implies substitute, because it is a special case of substitution
 if ($mappingFile -and $mappingFile.Count -gt 0) { $substitute = $true } # LazyFile implies substitute
-if ($loop -lt 1) {$loop = 1} #avoid empty endless loop in case of wrong user input
+if ($loop -lt 1) { $loop = 1 } #avoid empty endless loop in case of wrong user input
 if ($ci) { $regexOptions = [System.Text.RegularExpressions.RegexOptions]::IgnoreCase }
     else { $regexOptions = [System.Text.RegularExpressions.RegexOptions]::None }
+if ($flags.Length -gt 0) { $r = $true }  # Provided flags indicate intended usage of regex
+if (($PSBoundParameters.ContainsKey("fromFile") -eq $false)){ $clipboardInput = $true }
+if (($PSBoundParameters.ContainsKey("fileName") -eq $true)){ $fileOutput = $true }
 if (-not $interactive) {
     $regularOptions = set-RegexFlags
     $regexOptions = $regexOptions -bor $regularOptions.Options
 }
-if ($flags.Length -gt 0) {$r = $true}  # Provided flags indicate intended usage of regex
-
 do { # (Endless) loop start
     for ($forRun = 1; $forRun -lt $loop + 1; $forRun++) {
         $runNr++
@@ -1210,6 +1221,3 @@ do { # (Endless) loop start
         }
     }
 } until (-not $endless)
-
-#ISSUES:
-# interactive triggered substitution also calls grepping
