@@ -133,9 +133,9 @@ Several features are triggered automatically when certain flags or inputs are us
 | No search/replace arguments given | Activates **interactive mode** (`-interactive`) |
 | `-A`, `-B` or `-C` provided | Enables **grep mode** (`-grep`) |
 | `-flags` / `-modifier` used | Enables **regex mode** (`-r`) |
-| `-mappingFile` used | Enables **substitution** |
-| `-revert` used | Enables **substitution** |
-
+| `-mappingFile` used | Enables **substitution** (`-substitute`) |
+| `-revert` used | Enables **substitution** (`-substitute`) |
+| `-fileName` used | Enables **write to file** (`-fileOutput`) |
 ---
 
 ### Mode Selection: Extract / Replace / Delete
@@ -211,7 +211,7 @@ These options are **optional** because the script attempts to infer which mode y
 
 ### Repetition & Looping
 
-- **Endless loop mode** (`-endless` / `-8`)  
+- **Endless loop mode** (`-endless` / `-oo`)  
   - Repeats the selected operation indefinitely  
   - Intended for fullscreen or continuously updated applications
   - Requires manual termination
@@ -303,4 +303,3 @@ And PowerShell just stands there, smiling politely like:
 **"Hehe, but *I* am allowed — here’s your solution."**
 
 So while it may not be the flashiest choice, PowerShell is the one tool that actually survives the real-world security gauntlet. And that makes it the perfect fit for this project.
-
