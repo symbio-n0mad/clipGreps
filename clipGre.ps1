@@ -7,6 +7,8 @@ param (
     [string]$flags = "",
     [Alias("applyToFile", "readFromFile", "ff", "files")]    
     [string[]]$fromFile = @(),
+    [Alias("overwrite", "ip")]          
+    [switch]$inPlace = $false,
     [Alias("searchFile", "sfile", "sf")]
     [string[]]$searchFilePath = @(),    
     [Alias("replaceFile", "rfile", "rf")]          
@@ -19,6 +21,8 @@ param (
     [string[]]$mappingFile = @(),
     [Alias("readInput", "ri", "ia")] 
     [switch]$interactive,
+    [Alias("allFiles", "readAll", "sb")] 
+    [switch]$scanBinary,
     [Alias("wait", "delay", "t", "sleep")] 
     [string]$timeout = "0",
     [Alias("h", "hint", "usage")]          
@@ -985,6 +989,44 @@ function invoke-Textfilter() {
     }
 }
 
+function isTextFile {
+    # Copilot
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    if ($scanBinary) {
+        return $true
+    }
+    # Only consider existing files
+    if (-not (Test-Path $Path -PathType Leaf)) {
+        return $false
+    }
+
+    try {
+        # Read only first chunk for speed (GNU grep scans first buffer)
+        $fs = [System.IO.File]::OpenRead($Path)
+        $buffer = New-Object byte[] 65536   # 64 KB like GNU grep
+        $bytesRead = $fs.Read($buffer, 0, $buffer.Length)
+        $fs.Close()
+    }
+    catch {
+        return $false
+    }
+
+    # Scan for NUL byte (0x00)
+    for ($i = 0; $i -lt $bytesRead; $i++) {
+        if ($buffer[$i] -eq 0) {
+            return $false  # File is binary (GNU grep logic)
+        }
+    }
+
+    # No null bytes found → treat as text
+    return $true
+}
+
+
 function Invoke-PathProcessor {
     # co-operation-ilot partly
     param (
@@ -993,7 +1035,7 @@ function Invoke-PathProcessor {
         [string[]]$searchLines,
         [switch]$callFilter
     )
-
+    $result=""
     foreach ($p in $Paths) {
         if (-not (Test-Path $p)) {
             Write-Host "Invalid path: $p" -ForegroundColor Red
@@ -1003,7 +1045,7 @@ function Invoke-PathProcessor {
         # If file
         if (Test-Path $p -PathType Leaf) {
             Write-Host "`n=== FILE: $p ===" -ForegroundColor Cyan
-
+            
             try {
                 $text = Get-Content -Path $p -Raw -ErrorAction Stop
                 if($null -eq $text -or $text -eq '') {
@@ -1014,7 +1056,9 @@ function Invoke-PathProcessor {
                     invoke-Textfilter -Text $text -searchLines $Script:searchLines
                 }
                 else{
-                    $Script:clipboardText = invoke-Replacement -Text $text 
+                    $meta = invoke-Replacement -Text $text
+                    # $result += ($meta.replacementResult -join "$Script:plain")
+                    $result += $meta.replacementResult + $Script:plain
                 }
             }
             catch {
@@ -1033,22 +1077,37 @@ function Invoke-PathProcessor {
 
             foreach ($file in $files) {
 
-                # Try reading file BEFORE printing filename
-                try {
-                    $text = Get-Content -Path $file.FullName -Raw -ErrorAction Stop
-                }
-                catch {
-                    # Not readable as text -> skip silently
-                    continue
-                }
+                if(isTextFile $file){
+                    # Try reading file BEFORE printing filename
+                    try {
+                        $text = Get-Content -Path $file.FullName -Raw -ErrorAction Stop
+                    }
+                    catch {
+                        # Not readable as text -> skip silently
+                        continue
+                    }
 
-                # Only printed if text-readable
-                Write-Host "`n=== FILE: $($file.FullName) ===" -ForegroundColor Green
-                if($text -eq '' -or $null -eq $text) { Write-Host "Empty file. No matches." -ForegroundColor Yellow } 
-                else { invoke-Textfilter -Text $text -searchLines $searchLines }
+                    # Only printed if text-readable
+                    Write-Host "`n=== FILE: $($file.FullName) ===" -ForegroundColor Green
+                    if($text -eq '' -or $null -eq $text) { Write-Host "Empty file. No matches." -ForegroundColor Yellow } 
+                    else { 
+                        if($callFilter) {
+                            invoke-Textfilter -Text $text -searchLines $Script:searchLines
+                        }
+                        else{
+                            $meta = invoke-Replacement -Text $text
+                            # $result += ($meta.replacementResult -join "$Script:plain")
+                            $result += $meta.replacementResult + $Script:plain
+                        }
+                    }
+                }
+                else {
+                    Write-Host "`n=== BINARY FILE: $($file.FullName) ===" -ForegroundColor Yellow
+                }
             }
         }
     }
+    $Script:clipboardText = ($result -join "$Script:plain")
 }
 
 
@@ -1087,7 +1146,20 @@ $A += $C
 $B += $C
 $runNr = 0
 if ($A -gt 0 -or $B -gt 0) { $extractMatch = $true }
-if ($revert) { $substitute = $true } # Revert implies substitute, because it is a special case of substitution
+# if ($revert -or $delete) { $substitute = $true } # Revert implies substitute, because it is a special case of substitution
+if ( 
+    (($searchText | Where-Object { $_ -ne $null -and $_ -ne '' }) -and -not ($replaceText | Where-Object { $_ -ne $null -and $_ -ne '' }))
+    )
+    {
+        $extractMatch = $true
+    }
+if ( 
+    (($replaceText | Where-Object { $_ -ne $null -and $_ -ne '' }) -and ($searchText | Where-Object { $_ -ne $null -and $_ -ne '' })) -or
+    $revert -or
+    $delete
+    ) { 
+        $substitute = $true 
+    } # 
 if ($mappingFile -and $mappingFile.Count -gt 0) { $substitute = $true } # LazyFile implies substitute
 if ($loop -lt 1) { $loop = 1 } #avoid empty endless loop in case of wrong user input
 if ($ci) { $regexOptions = [System.Text.RegularExpressions.RegexOptions]::IgnoreCase }
@@ -1158,7 +1230,7 @@ do { # (Endless) loop start
         }
 
         # Main processing: Grep / Extract matches with context
-        if ($extractMatch -or (-not $delete -and -not ($replaceLines | Where-Object { $_ -ne $null -and $_ -ne '' }) -and ($searchLines | Where-Object { $_ -ne $null -and $_ -ne '' }))) {  # test for grep flag
+        if ( $extractMatch ) {  # test for grep flag
             if($clipboardInput) {
                 invoke-Textfilter -Text $clipboardText -searchLines $searchLines
             }
@@ -1167,7 +1239,7 @@ do { # (Endless) loop start
             }
         }
 
-        if ($substitute -or $delete -or (($replaceLines | Where-Object { $_ -ne $null -and $_ -ne '' }) -and ($searchLines | Where-Object { $_ -ne $null -and $_ -ne '' }))) {  # If not grepping / extracting, do search and replace
+        if ( $substitute ) {  # If not grepping / extracting, do search and replace
             # Check for usability of provided search/replace lines
             if ($searchLines.Count -lt $replaceLines.Count) {  # Search terms being < replace terms is impossible
                 Write-Error "Error: Amount of search strings cannot be less than replace strings, check entries!"
@@ -1225,3 +1297,4 @@ do { # (Endless) loop start
         }
     }
 } until (-not $endless)
+
