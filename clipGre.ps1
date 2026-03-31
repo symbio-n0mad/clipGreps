@@ -414,7 +414,6 @@ function Read-Input {
     if (-not $Script:extractMatch -and -not $Script:substitute -and -not $Script:delete) {
         $opCaption = 'Missing CLI options, please specify your intention'
         $opMessage = 'Choose what you want to do:'
-        $readFlagsMessage = "Enter regex flags (imsx ecujrb, 'i' ignore case, 'm' multiline, etc.; empty for none) "
         $opChoices = @(
             [System.Management.Automation.Host.ChoiceDescription]::new('&Substitution', 'Perform a substitution')
             [System.Management.Automation.Host.ChoiceDescription]::new('&Grep (text filter)', 'Filter lines by a regex or plain text')
@@ -466,13 +465,13 @@ function Read-Input {
             }
             2 {
                 $Script:r = $true
-                $flags = Read-Host $readFlagsMessage
+                $flags = Read-Host "Enter regex flags (imsx ecujrb, 'i' ignore case, 'm' multiline, etc.; empty for none) "
             }
         }
     }
     elseif ($Script:r -and ( "" -eq $Script:flags )) {
         # if regex enabled but no flags provided enter flags now
-        $flags = Read-Host $readFlagsMessage
+        $flags = Read-Host "Enter regex flags (imsx ecujrb, 'i' ignore case, 'm' multiline, etc.; empty for none) "
     }
 
     # ---- Read search text ----
