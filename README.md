@@ -71,17 +71,17 @@ You can achieve this easily using a **desktop shortcut** that launches PowerShel
 
 ## All Features Explained (incl. Advanced / Implicit Behaviour)
 
-Below is a complete overview of all functional capabilities. Several options interact with each other and may implicitly activate related features. Unless noted otherwise, all options are **optional**, and the script attempts to **infer intent automatically**.
+Below is a complete overview of all functional capabilities. Several options interact with each other and may implicitly activate related features. All options are **optional**, and the script attempts to **infer intent automatically**, but does not necessarily hinder you from attempting impossible operations ;-)
 
 ---
 
 ### Search & Replace Inputs
 
-- **Inline search strings** (`-searchText`)  
+- **Inline search strings** (`-searchText <STRING>`, `-st <STRING>`)  
   - Provided as a single string or an array  
     - Example: `-st "foo","bar","baz"`
   
-- **Inline replacement strings** (`-replaceText`)  
+- **Inline replacement strings** (`-replaceText <STRING>`, `-rt <STRING>`)  
   - Single string or array  
     - Example: `-rt "one","two","three"`
 
@@ -201,7 +201,7 @@ These options are **optional** because the script attempts to infer which mode y
   - If path is a folder, this option will activate recursive search for all subfolders
 
 - **Scan binary** (`-scanBinary` / `-sb`) files
-  - Does not check the file for \0
+  - Does not check the file for nullbytes
   - Chosen operation is applied to every file
 
 ---
