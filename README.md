@@ -1,7 +1,10 @@
 # clipGreps: Clipboard Grep and Substitutions
 ## clipGre.ps1
 
-A lightweight PowerShell script for **filter** or **search & replace operations** directly on your **clipboard content**.
+A lightweight PowerShell script for **filter** or **search & replace operations** directly on your **clipboard content**.  
+Resembles GNU *sed* and *grep*: Textfilter and search and replace operations can also be applied to **files**.
+
+Compatible with PowerShell 5.1
 
 ---
 
@@ -21,19 +24,23 @@ These are the core, productive features:
 Below are simple examples demonstrating the essential functionality of the script:
 
 ```powershell
-# Basic inline search & replace
-# Replaces every occurrence of "foo" with "bar" in the clipboard content.
-clipGre.ps1 -search "foo" -replace "bar"
-# Accepts arrays as search/replace strings, e.g. redacting names
+# Basic text filter, literal text
+clipGre.ps1 "eggsample"
+
+# Basic search & replace
+clipGre.ps1 "eggsample" "example"
+
+# Apply textfilter to folder and sub-folder content, recursively, case-insensitive
+clipGre.ps1 "glasses" -files "c:\path\to\folder" -recurse -i
+
+
+# Accepts arrays as search/replace strings, e.g. redacting names, e-mails or other patterns
+# Option names (-search and -replace) may be omitted if order is kept
 clipGre.ps1 -search "Jens@Hofmann.biz","Albert Schrödinger","123.999" -replace "[Redacted E-Mail]","[Redacted Name]","[Redacted Number]"
 
-# Grep-like filtering (no replacement)
-# Keeps only lines that match "pattern" from the clipboard
-clipGre.ps1 -searchText "pattern"
-
-# RegEx + case-insensitive replacement
-# Finds "foo...bar" regardless of case, and replaces the entire match with "baz".
-clipGre.ps1 -r -i -searchText "foo.*bar" -replaceText "baz"
+# When used with RegEx flags can be specified
+# Finds "foo...bar", and prints context lines before and after
+clipGre.ps1 -r -flags si -B 2 -A 1 "foo.{2,4}bar" 
 
 ```
 
