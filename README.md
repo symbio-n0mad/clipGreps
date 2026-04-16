@@ -24,10 +24,10 @@ These are the core, productive features:
 Below are simple examples demonstrating the essential functionality of the script:
 
 ```powershell
-# Basic text filter, literal text
+# Basic text filter, literal text (standard target: clipbaord)
 clipGre.ps1 "eggsample"
 
-# Basic search & replace
+# Basic search & replace (standard target: clipbaord)
 clipGre.ps1 "eggsample" "example"
 
 # Apply textfilter to folder and sub-folder content, recursively, case-insensitive
@@ -110,11 +110,14 @@ Below is a complete overview of all functional capabilities. Several options int
   - Identical behaviour as search folder  
   - **Empty patterns = deletions**
 
----
 
-### Mapping Files (Lazy / Mapping Mode)
+- **Whole-file mode** (`-wholeFile` / `-f`)  
+  - Every input file is considered one single expression 
+  - Useful for multi-line regex patterns 
+    - Best combined with `-flags "x"`
 
-- **Mapping file** (`-mappingFile`, aliases: `-lazyFile`, `-lazyPairs`)  
+
+- **Mapping file** (`-mappingFile <FILE>` , aliases: `-lazyFile <FILE>`, `-lazyPairs <FILE>`), *lazy mode* 
   - Single string or array  
   - Contains *pairs* of search → replace entries  
   - Automatically enables **substitution mode** (`-substitute`)  
@@ -130,6 +133,7 @@ Below is a complete overview of all functional capabilities. Several options int
     ```
 
 ---
+
 
 ### Implicit Behaviour
 
@@ -182,26 +186,33 @@ These options are **optional** because the script attempts to infer which mode y
 
 ---
 
-### Input Processing
 
-- **Line-by-line mode** (default)  
-  - Each line is treated as an independent expression
 
-- **Whole-file mode** (`-wholeFile` / `-f`)  
-  - Input is considered one single expression  
-  - Useful for multi-line regex patterns or structural transformations
+### Apply to files instead of clipboard content
+
+- **Apply to file** (`-ff <FILE>` / `-files <FOLDER>`) rather than clipboard
+  - If not provided standard target is the clipboard
+  - Specified file path will be read to apply chosen operation to contained text
+  - If the path is a folder, all contained non-binary files will be read
+  - Only scans non-binary files
+  - May be an array of paths
+
+- **Recursive search** in subfolders (`-recurse` / `-subdirs`)  
+  - If path is a folder, this option will activate recursive search for all subfolders
+
+- **Scan binary** (`-scanBinary` / `-sb`) files
+  - Does not check the file for \0
+  - Chosen operation is applied to every file
 
 ---
 
-### Interactive Mode
-
-- **Interactive prompt** (`-interactive` / `-ia`)  
-  - Allows entering search/replace strings manually at runtime  
-  - Automatically activated when no search/replace arguments are provided
-
----
 
 ### Output Handling
+
+- **Raw filter** output (`-plain <STRING>` / `-raw <STRING>`)  
+  - Output from textfilter will be reduced to only matches
+  - Match separation with specified string
+  - Allows `\t`, `\r` and `\n` in the string for formatting
 
 - **Write to file** (`-w` / `-write`)  
   - Redirects output to a file instead of copying to clipboard
@@ -234,7 +245,11 @@ These options are **optional** because the script attempts to infer which mode y
 
 ---
 
-### Additional Behaviour
+### Additional Features
+
+- **Interactive prompt** (`-interactive` / `-ia`)  
+  - Allows entering search/replace strings manually at runtime  
+  - Automatically activated when no search/replace arguments are provided
 
 - **Require confirmation before exit** (`-persist` / `-p`)  
   - Keeps the terminal open until the user presses Enter  
@@ -287,7 +302,6 @@ If you still want to be extra cautious, you can **enforce linear‑time matching
 - **ReDoS / catastrophic backtracking**: Certain regex patterns can cause exponential runtimes on specific inputs when backtracking is allowed.
 - **NonBacktracking mode**: Disables backtracking in the regex engine, resulting in **predictable, linear runtime**. This eliminates ReDoS risks but **restricts some advanced regex features** (e.g., patterns relying on backtracking constructs). If a pattern depends on such features, it may need to be simplified or rewritten.
 - For **trusted, local, one‑user scenarios** (default usage), standard regex behavior is fine.
-- For **maximum safety** or when using complex patterns, add `b` to your modifiers to enforce **NonBacktracking**.
 
 
 ### How to enable it
