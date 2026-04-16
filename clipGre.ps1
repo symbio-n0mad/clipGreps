@@ -8,7 +8,7 @@ param (
     [Alias("applyToFile", "readFromFile", "ff", "files")]    
     [string[]]$fromFile = @(),
     [Alias("overwrite", "ip")]          
-    [switch]$inPlace = $false,
+    [switch]$inPlace = $false,  # planned: in-place substitutions for files
     [Alias("searchFile", "sfile", "sf")]
     [string[]]$searchFilePath = @(),    
     [Alias("replaceFile", "rfile", "rf")]          
@@ -564,18 +564,19 @@ function Show-Helptext {  # self descriptive: print help text
     Write-Host "  -g  / -grep / -extractMatch   Extract matching text only"
     Write-Host "  -s  / -substitute             Perform search and replace"
     Write-Host "  -e  / -revert                 Swap search and replace values (reverse substitution)"
-    Write-Host "  -d  / -delete                 Delete lines containing matches"
+    Write-Host "  -d  / -delete                 Delete the matches"
     Write-Host ""
 
     Write-Host "MATCHING BEHAVIOUR"
-    Write-Host "  -r  / -RegEx                 Enable Regular Expressions"
-    Write-Host "  -m  / -modifier              Pass regex engine flags (enables -r implicitly)"
-    Write-Host "  -ci / -ignoreCase            Ignore case while matching"
+    Write-Host "  -i / -ignoreCase            Ignore case while matching"
+    Write-Host "  -r  / -RegEx                Enable Regular Expressions"
+    Write-Host "  -m  / -flags                Pass regex engine flags (enables -r implicitly)"
     Write-Host ""
     Write-Host "CONTEXT OPTIONS"
     Write-Host "  -A / -after                  Number of lines after a match"
     Write-Host "  -B / -before                 Number of lines before a match"
     Write-Host "  -C / -combined               Apply same number of lines before and after"
+    Write-Host "  -pg / plain                  Only matches (and provided separation string) for grep output"
     Write-Host ""
 
     Write-Host "INPUT / OUTPUT CONTROL"
@@ -588,7 +589,7 @@ function Show-Helptext {  # self descriptive: print help text
     Write-Host "FLOW CONTROL"
     Write-Host "  -t  / -timeout               Wait time (seconds) before script exits"
     Write-Host "  -p  / -persist               Require confirmation before closing the window"
-    Write-Host "  -8  / -endless               Repeat the operation endlessly"
+    Write-Host "  -oo  / -endless               Repeat the operation endlessly"
     Write-Host "  -l  / -loop                  Repeat the operation n times"
     Write-Host ""
 
@@ -808,7 +809,7 @@ function show-Stats() {
             Write-Host "Sentence count (no options, regex: `"(?<=[\.!\?])\s+`"): " -NoNewline 
             Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "(?<=[\.!\?])\s+", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor DarkMagenta
             #field count
-            Write-Host "Space separated fields, like words (no options, regex: `"\s*\S+\s*`"): " -NoNewline 
+            Write-Host "Fields, space separated, like words (no options, regex: `"\s*\S+\s*`"): " -NoNewline 
             Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\s*\S+\s*", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor Magenta
             #multiple spaces count
             Write-Host "Multiple spaces count (regex: `" {2,}`"): " -NoNewline 
@@ -1125,7 +1126,6 @@ if ($revert -and ($r -or $delete)) {
 if ( $Help.IsPresent ) {
     show-Helptext
     confirm-exit
-    wait-Timeout(750)
     return 
 }
 if (
@@ -1147,7 +1147,7 @@ $runNr = 0
 if ($A -gt 0 -or $B -gt 0) { $extractMatch = $true }
 # if ($revert -or $delete) { $substitute = $true } # Revert implies substitute, because it is a special case of substitution
 if ( 
-    (($searchText | Where-Object { $_ -ne $null -and $_ -ne '' }) -and -not ($replaceText | Where-Object { $_ -ne $null -and $_ -ne '' }))
+    (($searchText | Where-Object { $_ -ne $null -and $_ -ne '' }) -and -not ($replaceText | Where-Object { $_ -ne $null -and $_ -ne '' }) -and -not ($substitute -or $revert -or $delete))
     )
     {
         $extractMatch = $true
