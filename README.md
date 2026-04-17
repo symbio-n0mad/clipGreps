@@ -2,7 +2,7 @@
 ## clipGre.ps1
 
 A lightweight PowerShell script for **filter** or **search & replace operations** directly on your **clipboard content**.  
-Resembles GNU *sed* and *grep*: Textfilter and search and replace operations can also be applied to **files**.
+Resembles GNU *sed* and *grep*: Textfilter as well as search and replace operations can also be applied to **files**.
 
 Compatible with PowerShell 5.1
 
