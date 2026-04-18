@@ -166,7 +166,7 @@ These options are **optional** because the script attempts to infer which mode y
   - Swaps search and replace values
 
 - **Delete** (`-delete` / `-d`)  
-  - Removes lines matching the search pattern  
+  - Removes the matching search pattern  
   - Useful for cleaning lists or rapidly filtering content
 
 ---
@@ -202,7 +202,7 @@ These options are **optional** because the script attempts to infer which mode y
 
 - **Scan binary** (`-scanBinary` / `-sb`) files
   - Does not check the file for nullbytes
-  - Chosen operation is applied to every file
+  - Textfilter is applied to all files, including binary
 
 ---
 
@@ -211,7 +211,7 @@ These options are **optional** because the script attempts to infer which mode y
 
 - **Raw filter** output (`-plain <STRING>` / `-raw <STRING>`)  
   - Output from textfilter will be reduced to only matches
-  - Match separation with specified string
+  - Match separation with specified string, empty strings allowed
   - Allows `\t`, `\r` and `\n` in the string for formatting
 
 - **Write to file** (`-w` / `-write`)  
@@ -219,7 +219,7 @@ These options are **optional** because the script attempts to infer which mode y
 
 - **Explicit filename** (`-saveAs <FILE>` / `-o <FILE>`)  
   - Custom filename  
-  - A timestamp is always appended
+  - A timestamp is appended always
 
 - **Default filename**  
   - When no name is provided, a timestamp is used automatically
@@ -241,7 +241,7 @@ These options are **optional** because the script attempts to infer which mode y
 - **Timeout between loops** (`-timeout <SECONDS>` / `-t <SECONDS>` )  
   - Delays execution before exiting  
   - Negative values delay execution *before* running the action  
-  - Recommended when combining with `-endless` or `-loop <N>`
+  - Recommended with looping `-endless` or `-loop <N>`
 
 ---
 
