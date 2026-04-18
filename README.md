@@ -1,8 +1,8 @@
-# clipGreps: Clipboard Grep and Substitutions
+# clipGreps: Clipboard Textfilter and Substitutions
 ## clipGre.ps1
 
 A lightweight PowerShell script for **filter** or **search & replace operations** directly on your **clipboard content**.  
-Resembles GNU *sed* and *grep*: Textfilter as well as search and replace operations can also be applied to **files**.
+Resembles GNU *sed* and *grep*; textfilter as well as search and replace operations can also be applied to **files**.
 
 Compatible with PowerShell 5.1+
 
@@ -16,6 +16,7 @@ These are the core, productive features:
 - Includes a **grep-like search** mode (`-search <pattern>`) for quick text filtering 🔍  
   - Displays: literal match, full line (+ optional context) containing the match, the line number and overall match count
 - Optional **RegEx** mode (`-r`) and **case-insensitive mode** (`-i`)  
+- Can also be applied to **files** (`-files "C:\path\to"`) or scans (recursively) through folders
 
 
 
@@ -78,28 +79,27 @@ Below is a complete overview of all functional capabilities. Several options int
 ### Search & Replace Inputs
 
 - **Inline search strings** (`-searchText <STRING>`, `-st <STRING>`)  
+  - Allowed as first positional argument without keyword
   - Provided as a single string or an array  
     - Example: `-st "foo","bar","baz"`
   
 - **Inline replacement strings** (`-replaceText <STRING>`, `-rt <STRING>`)  
+  - Allowed as second positional argument without keyword
   - Single string or array  
     - Example: `-rt "one","two","three"`
 
 - **Search file** (`-searchFile <FILE>`)  
   - Single string or array  
-  - May be provided multiple times  
   - Each line is treated as one search pattern  
   - Empty lines are **deprecated**
 
 - **Replace file** (`-replaceFile <FILE>`)  
   - Single string or array  
-  - May be provided multiple times  
   - Each line corresponds to a replacement pattern  
   - **Empty patterns = deletions**
 
 - **Search folder** (`-searchFolder <FOLDER>`)  
-  - Single string or array  
-  - Accepts one or multiple directories  
+  - Single string or array, one or multiple directories 
   - Uses only `*.txt` files  
   - Files are sorted alphabetically  
   - File count must match `-replaceFolder`  
@@ -113,8 +113,8 @@ Below is a complete overview of all functional capabilities. Several options int
 
 - **Whole-file mode** (`-wholeFile` / `-f`)  
   - Every input file is considered one single expression 
-  - Useful for multi-line regex patterns 
-    - Best combined with `-flags "x"`
+  - Useful for multi-line regex patterns or multiline literal strings
+    - Best combined with `-flags "x"` for use as regex
 
 
 - **Mapping file** (`-mappingFile <FILE>` , aliases: `-lazyFile <FILE>`, `-lazyPairs <FILE>`), *lazy mode* 
@@ -125,10 +125,10 @@ Below is a complete overview of all functional capabilities. Several options int
   - Ensures consistent pairing without having to manage file order manually  
   - Lines typically follow the format:  
     ```
-    1. searchValue 
-    2. replaceValue
-    3. searchValue 
-    4. replaceValue
+    1. searchValue1
+    2. replaceValue1
+    3. searchValue2
+    4. replaceValue2
     etc.
     ```
 
@@ -177,6 +177,7 @@ These options are **optional** because the script attempts to infer which mode y
   - Interprets all search strings as .NET regular expressions
 
 - **Modifier flags** (`-flags "imsx..."` / `-m`)  
+  - Allowed as third positional argument without keyword
   - Enables regex implicitly and passes flags directly to the .NET engine  
   - Example: `-m "imx"`
   - For available options see table below
