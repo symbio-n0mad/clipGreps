@@ -192,10 +192,10 @@ These options are **optional** because the script attempts to infer which mode y
 
 - **Apply to file** (`-ff <FILE>` / `-files <FOLDER>`) rather than clipboard
   - If not provided standard target is the clipboard
-  - Specified file path will be read to apply chosen operation to contained text
-  - If the path is a folder, all contained non-binary files will be read
-  - Only scans non-binary files
   - May be an array of paths
+  - Only scans non-binary files
+  - If the path is a folder, all contained files will be read
+  - Textfilter outputs to console, substitution result will reside in clipboard
 
 - **Recursive search** in subfolders (`-recurse` / `-subdirs`)  
   - If path is a folder, this option will activate recursive search for all subfolders
