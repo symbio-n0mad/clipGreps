@@ -16,7 +16,7 @@ These are the core, productive features:
 - Includes a **grep-like search** mode (`-search <pattern>`) for quick text filtering 🔍  
   - Displays: literal match, full line (+ optional context) containing the match, the line number and overall match count
 - Optional **RegEx** mode (`-r`) and **case-insensitive mode** (`-i`)  
-- Can also be applied to **files** (`-files "C:\path\to"`) or scans (recursively) through folders
+- Can also be applied to **files or folders** (`-files "C:\path\to"`), optionally recursively
 
 
 
