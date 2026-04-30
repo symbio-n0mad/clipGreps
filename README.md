@@ -40,7 +40,7 @@ clipGre.ps1 "glasses" -files "c:\path\to\folder" -recurse -i
 clipGre.ps1 -search "Jens@Hofmann.biz","Albert Schrödinger","123.999" -replace "[Redacted E-Mail]","[Redacted Name]","[Redacted Number]"
 
 # When used with RegEx flags can be specified
-# Finds "foo...bar", and prints context lines before and after
+# Finds "foo...bar", uses flags "si" and prints context lines before and after match
 clipGre.ps1 -r -flags si -B 2 -A 1 "foo.{2,4}bar" 
 
 ```
