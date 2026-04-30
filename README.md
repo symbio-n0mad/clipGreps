@@ -93,19 +93,19 @@ Below is a complete overview of all functional capabilities. Several options int
     - Example: `-rt "one","two","three"`
 
 - **Search file** (`-searchFile <FILE>`)  
-  - Single string or array  
-  - Each line is treated as one search pattern  
-  - Empty lines are **deprecated**
+  - Single string or array
+  - **Each line** is treated as **one search pattern**  
+  - Empty lines are deprecated
 
 - **Replace file** (`-replaceFile <FILE>`)  
   - Single string or array  
-  - Each line corresponds to a replacement pattern  
-  - **Empty patterns = deletions**
+  - **Each line** corresponds to **a replacement pattern**  
+  - Empty patterns = *deletions*
 
 - **Search folder** (`-searchFolder <FOLDER>`)  
   - Single string or array, one or multiple directories 
   - Uses only `*.txt` files  
-  - Files are sorted alphabetically  
+  - Files are *sorted alphabetically*  
   - File count must match `-replaceFolder`  
   - Empty files are **deprecated**
 
@@ -116,7 +116,7 @@ Below is a complete overview of all functional capabilities. Several options int
 
 
 - **Whole-file mode** (`-wholeFile` / `-f`)  
-  - Every input file is considered one single expression 
+  - *Every input file is considered one single expression* 
   - Useful for multi-line regex patterns or multiline literal strings
     - Best combined with `-flags "x"` for use as regex
 
@@ -143,14 +143,20 @@ Below is a complete overview of all functional capabilities. Several options int
 
 Several features are triggered automatically when certain flags or inputs are used:
 
+
 | Condition | Implicit Action |
-|----------|------------------|
-| No search/replace arguments given | Activates **interactive mode** (`-interactive`) |
+|-----------|------------------|
+| First unnamed CLI argument | Treated as value for **`-search`** |
+| Second unnamed CLI argument | Treated as value for **`-replace`** |
+| Third unnamed CLI argument  | Treated as value for **`-flags`** |
+| No search/replace values given | Activates **interactive mode** (`-interactive`) |
 | `-A`, `-B` or `-C` provided | Enables **grep mode** (`-grep`) |
 | `-flags` / `-modifier` used | Enables **regex mode** (`-r`) |
 | `-mappingFile` used | Enables **substitution** (`-substitute`) |
 | `-revert` used | Enables **substitution** (`-substitute`) |
 | `-fileName` used | Enables **write to file** (`-fileOutput`) |
+| `-delete` used | *Overwrites* **substitution** |
+
 ---
 
 ### Mode Selection: Extract / Replace / Delete
@@ -162,12 +168,12 @@ These options are **optional** because the script attempts to infer which mode y
   - Context options available (`-A`, `-B`, `-C`)
 
 - **Substitution** (`-substitute` / `-s`)  
-  - Performs search & replace  
+  - Performs *search & replace*  
   - Activated automatically through mapping files or `-revert`
   - Overridden by `-delete`
 
 - **Revert substitution** (`-revert` / `-e`)  
-  - Swaps search and replace values
+  - Swaps the provided search and replace values
 
 - **Delete** (`-delete` / `-d`)  
   - Removes the matching search pattern  
@@ -197,7 +203,7 @@ These options are **optional** because the script attempts to infer which mode y
 
 - **Apply to file** (`-ff <FILE>` / `-files <FOLDER>`) rather than clipboard
   - If not provided standard target is the clipboard
-  - May be an array of paths
+  - May be an *array* of *paths*
   - Only scans non-binary files
   - If the path is a folder, all contained files will be read
   - Textfilter outputs to console, substitution result will reside in clipboard
@@ -233,6 +239,10 @@ These options are **optional** because the script attempts to infer which mode y
 ---
 
 ### Repetition & Looping
+
+- **Looping** re-reads search (and replace) values
+  - Specified path(s) for pattern(s) are freshly evaluated in every iteration
+  - Input file path(s) are also re-read repeatedly
 
 - **Endless loop mode** (`-endless` / `-oo`)  
   - Repeats the selected operation indefinitely  
@@ -281,19 +291,20 @@ The following table lists all supported .NET regex modifiers evaluated in the sc
 | **i**   | `IgnoreCase`                    | Case-insensitive matching. |
 | **m**   | `Multiline`                     | `^` and `$` match line start and line end instead of only the beginning/end of the entire input. |
 | **s**   | `Singleline`                    | The dot (`.`) also matches newline characters (`\n`). |
-| **x**   | `IgnorePatternWhitespace`       | Whitespace in the pattern is ignored; comments are allowed. |
+| **x**   | `IgnorePatternWhitespace`       | Whitespace in the pattern is ignored; activates free format comment mode |
 
 ### Advanced / Exotic Options
 
 | Modifier | RegexOptions Enum Value        | Description |
 |---------|---------------------------------|-------------|
-| **e**   | `ExplicitCapture`               | Only named groups (e.g. `(?<name>...)`) are captured. |
+| **e**   | `ExplicitCapture`               | Only named groups (e.g. `(?<name>...)`) are captured.* |
 | **c**   | `Compiled`                      | Compiles the regex for improved performance when reused repeatedly. |
 | **u**   | `CultureInvariant`              | Culture‑invariant matching, ignoring locale-specific rules. |
 | **j**   | `ECMAScript`                    | Enables ECMAScript‑compatible regular expression behavior. |
 | **r**   | `RightToLeft`                   | Performs the match from right to left. |
 | **b**   | `NonBacktracking`               | Uses a non‑backtracking regex engine mode (faster, but with feature limitations). |
 
+\*accessing specific groups is not implemented in clipGreps
 ## Safety & Security
 
 > TL;DR: By default, this tool assumes trusted, user‑local input. If you want to be absolutely safe against ReDoS, enable **NonBacktracking** (`-m b`) to guarantee linear performance, sacrificing backtracking.
@@ -306,15 +317,13 @@ If you still want to be extra cautious, you can **enforce linear‑time matching
 
 - **ReDoS / catastrophic backtracking**: Certain regex patterns can cause exponential runtimes on specific inputs when backtracking is allowed.
 - **NonBacktracking mode**: Disables backtracking in the regex engine, resulting in **predictable, linear runtime**. This eliminates ReDoS risks but **restricts some advanced regex features** (e.g., patterns relying on backtracking constructs). If a pattern depends on such features, it may need to be simplified or rewritten.
-- For **trusted, local, one‑user scenarios** (default usage), standard regex behavior is fine.
+- For **trusted, local, one‑user scenarios** (default usage), standard regex behavior is fine - you are *safe* and *secure*!
 
 
 ### How to enable it
 
-- Use the `NonBacktracking` option in your modifier string (the script flag is `b`).
-- Example with your script’s modifier flag:
+- Use the `NonBacktracking` option in your modifier string
   - CLI: `-m b`
-  - Combined with other flags (e.g., case‑insensitive + multiline + non‑backtracking): `-m imb`
 
 
 ## Why PowerShell?
