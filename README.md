@@ -292,7 +292,7 @@ The following table lists all supported regex modifiers evaluated in the script:
 
 ## Safety & Security
 
-> TL;DR: By default, this tool assumes trusted, user‑local input. If you want to be absolutely safe against ReDoS, enable **NonBacktracking** (`-m b`) to guarantee linear performance.
+> TL;DR: By default, this tool assumes trusted, user‑local input. If you want to be absolutely safe against ReDoS, enable **NonBacktracking** (`-m b`) to guarantee linear performance, sacrificing backtracking.
 
 This tool processes **only the current user’s input** (clipboard and/or local files you explicitly provide). Under this assumption, the risk of **Regular Expression Denial of Service (ReDoS)** or other super‑linear (exponential) matches is generally out of scope.
 
