@@ -271,7 +271,7 @@ These options are **optional** because the script attempts to infer which mode y
 
 ---
 
-## Regex Modifier Table (`-m` / `-modifier` Flag)
+## Regex Modifier Table (`-m` / `-modifier` / `-flags` option)
 
 The following table lists all supported .NET regex modifiers evaluated in the script:
 
