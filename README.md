@@ -174,7 +174,7 @@ These options are **optional** because the script attempts to infer which mode y
 ### Regex Features
 
 - **Enable RegEx mode** (`-regEx` / `-r`)  
-  - Interprets all search strings as .NET regular expressions
+  - Interprets all search strings as regular expressions (.NET style)
 
 - **Modifier flags** (`-flags "imsx..."` / `-m`)  
   - Allowed as third positional argument without keyword
@@ -269,7 +269,7 @@ These options are **optional** because the script attempts to infer which mode y
 
 ## Regex Modifier Table (`-m` / `-modifier` Flag)
 
-The following table lists all supported regex modifiers evaluated in the script:
+The following table lists all supported .NET regex modifiers evaluated in the script:
 
 | Modifier | RegexOptions Enum Value        | Description |
 |---------|---------------------------------|-------------|
