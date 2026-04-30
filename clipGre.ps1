@@ -78,8 +78,10 @@ function wait-Timeout([int]$additionalTime = 0) {
 
 function confirm-exit() {
     if ($persist){
-        Write-Host "Press Enter to end run..."
-        [void][System.Console]::ReadLine()
+        # Write-Host "Press Enter to end run..."
+        Write-Host "Press any key to continue..."
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+        # [void][System.Console]::ReadLine()
     }
 }
 
@@ -799,30 +801,34 @@ function show-Stats() {
             # Decimal numbers dot/comma
             Write-Host "Decimal numbers unicode count (regex: `"(?<![\p{L}\p{M}])[-+]?\d+([.,]\d+)?(?![\p{L}\p{M}])`"): " -NoNewline 
             Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "(?<![\p{L}\p{M}])[-+]?\d+([.,]\d+)?(?![\p{L}\p{M}])", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor Magenta
-            # Word count
-            Write-Host "Word count (no options, regex: `"\b\w+\b`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\b\w+\b", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor DarkMagenta
             # Unicodeword count
             Write-Host "Word count unicode (no options, regex: `"\b[\p{L}\p{M}\p{N}]+\b`"): " -NoNewline 
             Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\b[\p{L}\p{M}\p{N}]+\b", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor Magenta
-            # Sentence count
-            Write-Host "Sentence count (no options, regex: `"(?<=[\.!\?])\s+`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "(?<=[\.!\?])\s+", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor DarkMagenta
-            #field count
-            Write-Host "Fields, space separated, like words (no options, regex: `"\s*\S+\s*`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\s*\S+\s*", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor Magenta
             #multiple spaces count
             Write-Host "Multiple spaces count (regex: `" {2,}`"): " -NoNewline 
             Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, " {2,}", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor Magenta
+
+            # Sentence count
+            Write-Host "Sentence count (no options, regex: `"(?<=[\.!\?])\s+`"): " -NoNewline 
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "(?<=[\.!\?])\s+", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor DarkMagenta
+            # Non-empty line count
+            Write-Host "Non-empty line count (multiline, regex: `"^(?=.*\S).+$`"): " -NoNewline 
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "^(?=.*\S).+$", [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count -ForegroundColor Blue
             # Line count
-            Write-Host "Line count (no options, regex: `"\r?\n`"): " -NoNewline 
+            Write-Host "Linebreak count (no options, regex: `"\r?\n`"): " -NoNewline 
             Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\r?\n", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor DarkBlue
             # Line count
             Write-Host "Line count (multiline, regex: `"^`"): " -NoNewline 
             Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "^", [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count -ForegroundColor DarkBlue
-            # Non-empty line count
-            Write-Host "Non-empty line count (multiline, regex: `"^(?=.*\S).+$`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "^(?=.*\S).+$", [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count -ForegroundColor Blue
+            #field count
+            Write-Host "Fields, space separated, like words (no options, regex: `"\s*\S+\s*`"): " -NoNewline 
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\s*\S+\s*", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor Magenta
+            #comma count +1
+            Write-Host "Fields, comma separated_ commas +1 (no options, regex: `",`"): " -NoNewline 
+            Write-Host (([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, ",", [System.Text.RegularExpressions.RegexOptions]::None)).Count+1) -ForegroundColor Magenta
+            # Word count
+            Write-Host "Word count (no options, regex: `"\b\w+\b`"): " -NoNewline 
+            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\b\w+\b", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor DarkMagenta
 
             $mc = $null # reset variable for later use, previous values are not needed anymore
             foreach ($pattern in $searchLines) {
@@ -1197,7 +1203,7 @@ do { # (Endless) loop start
 
             if ([string]::IsNullOrWhiteSpace($clipboardText)) {   
                 Write-Host "No clipboard available. Nothing to do!" -ForegroundColor Magenta
-                if (-not $endless) {
+                if (-not $endless -or $loop -gt 1) {
                     return 
                 }
             }
