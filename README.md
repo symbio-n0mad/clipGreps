@@ -243,6 +243,7 @@ These options are **optional** because the script attempts to infer which mode y
 - **Looping** re-reads search (and replace) values
   - Specified path(s) for pattern(s) are freshly evaluated in every iteration
   - Input file path(s) are also re-read repeatedly
+  - CLI arguments are not re-read, but `-interactive`-input if specified
 
 - **Endless loop mode** (`-endless` / `-oo`)  
   - Repeats the selected operation indefinitely  
@@ -265,6 +266,8 @@ These options are **optional** because the script attempts to infer which mode y
 - **Interactive prompt** (`-interactive` / `-ia`)  
   - Allows entering search/replace strings manually at runtime  
   - Automatically activated when no search/replace arguments are provided
+  - Only offers search (& replace), regex with flags optionally
+    - no deployment of paths
 
 - **Require confirmation before exit** (`-persist` / `-p`)  
   - Keeps the terminal open until the user presses Enter  
@@ -297,14 +300,13 @@ The following table lists all supported .NET regex modifiers evaluated in the sc
 
 | Modifier | RegexOptions Enum Value        | Description |
 |---------|---------------------------------|-------------|
-| **e**   | `ExplicitCapture`               | Only named groups (e.g. `(?<name>...)`) are captured.* |
+| **e**   | `ExplicitCapture`               | Only named groups (e.g. `(?<name>...)`) are captured. |
 | **c**   | `Compiled`                      | Compiles the regex for improved performance when reused repeatedly. |
 | **u**   | `CultureInvariant`              | Culture‑invariant matching, ignoring locale-specific rules. |
 | **j**   | `ECMAScript`                    | Enables ECMAScript‑compatible regular expression behavior. |
 | **r**   | `RightToLeft`                   | Performs the match from right to left. |
 | **b**   | `NonBacktracking`               | Uses a non‑backtracking regex engine mode (faster, but with feature limitations). |
 
-\*accessing specific groups is not implemented in clipGreps
 ## Safety & Security
 
 > TL;DR: By default, this tool assumes trusted, user‑local input. If you want to be absolutely safe against ReDoS, enable **NonBacktracking** (`-m b`) to guarantee linear performance, sacrificing backtracking.
