@@ -871,18 +871,6 @@ function invoke-Replacement() {
     }
 }
 
-function convert-Escapes {
-    param(
-        [string]$InputString
-    )
-
-    # Replace typical escape sequences with real characters
-    $InputString = $InputString -replace '\\n', "`n"
-    $InputString = $InputString -replace '\\r', "`r"
-    $InputString = $InputString -replace '\\t', "`t"
-
-    return $InputString
-}
 
 function invoke-Textfilter() {
     param(
@@ -918,7 +906,7 @@ function invoke-Textfilter() {
     if ($Script:PSBoundParameters.ContainsKey("plain") -eq $true) {
         foreach ($m in $allMatches) {
             $m.Groups[0].Value | Write-Host -ForegroundColor Red -NoNewline
-            convert-Escapes $Script:plain  | Write-Host -ForegroundColor Red -NoNewline
+            $Script:plain  | Write-Host -ForegroundColor Red -NoNewline
             if ($Script:fileOutput) {
                 $null = $writeOut.Append($m.Groups[0].Value)  # Append to output string
                 $null = $writeOut.Append($Script:plain)
