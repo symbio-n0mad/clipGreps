@@ -12,11 +12,13 @@ Compatible with PowerShell 5.1+
 These are the core, productive features:
 
 - Supports **inline strings** (`-search foo`, `-replace bar`) or **text files** (see below) as search/replace ammo  
-  - Reads your clipboard, modifies it and puts changes back into the clipboardqw
+  - Reads your clipboard, modifies it and puts changes back into the clipboard
 - Includes a **grep-like search** mode (`-search <pattern>`) for quick text filtering 🔍  
   - Displays: literal match, full line (+ optional context) containing the match, the line number and overall match count
 - Optional **RegEx** mode (`-r`) and **case-insensitive mode** (`-i`)  
-- Can also be applied to **files or folders** (`-files "C:\path\to"`), optionally recursively (`-recurse`)
+- Can also be applied to **files or folders** (`-files "C:\path\to"`), optionally 
+  - recursively (`-recurse`)
+  - on binary files (`-scanBinary`)
 
 
 
