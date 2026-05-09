@@ -34,8 +34,8 @@ clipGre.ps1 'eggsample' 'example'
 # Apply textfilter to folder and sub-folder content, recursively, case-insensitive
 clipGre.ps1 'glasses' -files 'c:\path\to\folder' -recurse -i
 
-# Search for text and print context lines before (2) and after (1) the match
-clipGre.ps1 -B 2 -A 1 'cat' 
+# Regex search for text and print context lines before (2) and after (1) the match
+clipGre.ps1 -r -B 2 -A 1 'c.t\.' 
 
 ```
 
