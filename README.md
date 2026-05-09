@@ -34,14 +34,8 @@ clipGre.ps1 'eggsample' 'example'
 # Apply textfilter to folder and sub-folder content, recursively, case-insensitive
 clipGre.ps1 'glasses' -files 'c:\path\to\folder' -recurse -i
 
-
-# Accepts arrays as search/replace strings, e.g. redacting names, e-mails or other patterns
-# Option names (-search and -replace) may be omitted if order is kept
-clipGre.ps1 -search 'Jens@Hofmann.biz','Albert Schrödinger','123.999' -replace '[Redacted E-Mail]','[Redacted Name]','[Redacted Number]'
-
-# When used with RegEx flags can be specified
-# Finds 'foo...bar', uses flags 'si' and prints context lines before and after match
-clipGre.ps1 -r -flags si -B 2 -A 1 'foo.{2,4}bar' 
+# Search for text and print context lines before (2) and after (1) the match
+clipGre.ps1 -B 2 -A 1 'cat' 
 
 ```
 
@@ -70,6 +64,33 @@ You can achieve this easily using a **desktop shortcut** that launches PowerShel
    
 **Pro Tip:**
 For this workflow, it’s handy to use the `-interactive` option. If you already specify all other desired options directly in the shortcut, the interactive mode will only prompt you for the search string and/or the replacement string. This keeps the usage fast and flexible while avoiding repetitive typing.
+
+## CLI Tip: Run from Anywhere via PATH (Windows)
+
+To call the script from **any directory**, add its location to your user `PATH` using PowerShell only.
+
+### Setup Steps
+
+1. **Move the Script**
+   - Place `clipGre.ps1` in a stable directory, e.g.:
+     ```
+     C:\Tools\clipGreps\
+     ```
+
+2. **Add Directory to PATH (PowerShell One-Liner)**
+   ```
+   $p='C:\Tools\clipGreps';[Environment]::SetEnvironmentVariable('Path',[Environment]::GetEnvironmentVariable('Path','User')+';'+$p,'User')
+   ```
+
+3. **Make the new PATH available immediately or restart the terminal**
+   ```
+    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + [Environment]::GetEnvironmentVariable('Path', 'Machine')
+   ```
+4. **Use It**
+   ```
+   clipGre.ps1 -search 'foo' -replace 'bar'
+   ```
+
 
 ---
 
@@ -340,3 +361,39 @@ And PowerShell just stands there, smiling politely like:
 **"Hehe, but *I* am allowed — here’s your solution."**
 
 So while it may not be the flashiest choice, PowerShell is the one tool that actually survives the real-world security gauntlet. And that makes it the perfect fit for this project.
+
+---
+### Extended Examples  
+
+Below are extended examples demonstrating further functionality of the script:
+
+```powershell
+# Benchmark a regex search operation in a loop applied to a file
+clipGre.ps1 -r '(\d+?|\d+)' -benchmark -loop 10 -ff 'data.db'
+
+# regex search & replace with flags (clipbaord)
+clipGre.ps1 -r '-.-' ', ' 'ms'
+
+# very explicit search and search & replace with persisting terminal for reading output
+clipGre.ps1 -r -search '-.-' -replace ', ' -flags 'ms' -substitute -grep -persist
+
+# regex search & replace with groups (clipbaord)
+clipGre.ps1 -r '- . (\d+) . -' ' $1 ' 'msx'
+
+# regex search & replace with lists of regexes from files, pattern mapping search to replace line by line
+clipGre.ps1 -r -searchFile "regex-list.txt" -replaceFile "replacements.txt" "msi"
+
+# regex search & replace with lists of regexes from files, every file one pattern (-wholeFile / -f) 
+# free formatable regex flag x added
+clipGre.ps1 -r -searchFile "regex-list.txt" -replaceFile "replacements.txt" "xi" -f
+
+# Accepts arrays as search/replace strings, e.g. redacting names, e-mails or other patterns
+# Option names (-search and -replace) may be omitted if order is kept
+clipGre.ps1 -search 'Jens@Hofmann.biz','Albert Schrödinger','123.999' -replace '[Redacted E-Mail]','[Redacted Name]','[Redacted Number]'
+
+# When used with RegEx flags can be specified
+# Finds 'foo...bar', uses flags 'si' and prints context lines before and after match
+clipGre.ps1 -r -flags si -B 2 -A 1 'foo.{2,4}bar' 
+
+
+```
