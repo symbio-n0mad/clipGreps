@@ -12,7 +12,7 @@ Compatible with PowerShell 5.1+
 These are the core, productive features:
 
 - Supports **inline strings** (`-search foo`, `-replace bar`) or **text files** (see below) as search/replace ammo  
-  - Reads your clipboard, modifies it and puts changes back into the clipboard
+  - Reads your clipboard, modifies it and puts changes back into the clipboardqw
 - Includes a **grep-like search** mode (`-search <pattern>`) for quick text filtering 🔍  
   - Displays: literal match, full line (+ optional context) containing the match, the line number and overall match count
 - Optional **RegEx** mode (`-r`) and **case-insensitive mode** (`-i`)  
@@ -369,7 +369,7 @@ Below are extended examples demonstrating further functionality of the script:
 
 ```powershell
 # Benchmark a regex search operation in a loop applied to a file
-clipGre.ps1 -r '(\d+?|\d+)' -benchmark -loop 10 -ff 'data.db'
+clipGre.ps1 -r '(\d+?|\D+)' -benchmark -loop 10 -ff 'data.db'
 
 # regex search & replace with flags (clipbaord)
 clipGre.ps1 -r '-.-' ', ' 'ms'
