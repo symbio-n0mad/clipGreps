@@ -65,7 +65,7 @@ You can achieve this easily using a **desktop shortcut** that launches PowerShel
    - Now you can simply press your shortcut to run `clipGre.ps1` instantly — perfect for quick routine clipboard transformations or grep-style searches on the fly.
    
 **Pro Tip:**
-For this workflow, it’s handy to use the `-interactive` option. If you already specify all other desired options directly in the shortcut, the interactive mode will only prompt you for the search string and/or the replacement string. This keeps the usage fast and flexible while avoiding repetitive typing.
+For this workflow, it’s handy to use the `-interactive` option. If you additionally specify all other desired options directly in the shortcut, the interactive mode will only prompt you for the search string and/or the replacement string. This keeps the usage fast and flexible while avoiding repetitive typing.
 
 ## CLI Tip: Run from Anywhere via PATH (Windows)
 
