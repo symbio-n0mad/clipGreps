@@ -26,22 +26,22 @@ Below are simple examples demonstrating the essential functionality of the scrip
 
 ```powershell
 # Basic text filter, literal text (standard target: clipbaord)
-clipGre.ps1 "eggsample"
+clipGre.ps1 'eggsample'
 
 # Basic search & replace (standard target: clipbaord)
-clipGre.ps1 "eggsample" "example"
+clipGre.ps1 'eggsample' 'example'
 
 # Apply textfilter to folder and sub-folder content, recursively, case-insensitive
-clipGre.ps1 "glasses" -files "c:\path\to\folder" -recurse -i
+clipGre.ps1 'glasses' -files 'c:\path\to\folder' -recurse -i
 
 
 # Accepts arrays as search/replace strings, e.g. redacting names, e-mails or other patterns
 # Option names (-search and -replace) may be omitted if order is kept
-clipGre.ps1 -search "Jens@Hofmann.biz","Albert Schrödinger","123.999" -replace "[Redacted E-Mail]","[Redacted Name]","[Redacted Number]"
+clipGre.ps1 -search 'Jens@Hofmann.biz','Albert Schrödinger','123.999' -replace '[Redacted E-Mail]','[Redacted Name]','[Redacted Number]'
 
 # When used with RegEx flags can be specified
-# Finds "foo...bar", uses flags "si" and prints context lines before and after match
-clipGre.ps1 -r -flags si -B 2 -A 1 "foo.{2,4}bar" 
+# Finds 'foo...bar', uses flags 'si' and prints context lines before and after match
+clipGre.ps1 -r -flags si -B 2 -A 1 'foo.{2,4}bar' 
 
 ```
 
@@ -56,7 +56,7 @@ You can achieve this easily using a **desktop shortcut** that launches PowerShel
    - Right-click on your desktop → **New → Shortcut**  
    - For the location, enter something like:
      ```powershell
-     powershell.exe -ExecutionPolicy Bypass -File "C:\Path\To\clipGre.ps1" -i -r -search "foo.bar" -replace "baz"
+     powershell.exe -ExecutionPolicy Bypass -File "C:\Path\To\clipGre.ps1" -i -r -search 'foo.bar' -replace 'baz'
      ```
      >  `-ExecutionPolicy Bypass` ensures the script runs without restrictions, even if PowerShell’s default policy is limited.
 
