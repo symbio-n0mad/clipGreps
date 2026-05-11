@@ -744,106 +744,107 @@ function get-SearchnReplaceExpressions() {
 }
 
 function show-Stats() {
-                Write-Host ""
-            "-" * 25
-            $metrics = Get-TextMetricsPs5 -Text $clipboardUnchanged
-            
-            Write-Host "UTF-8 Bytes        : " -NoNewline -ForegroundColor Gray
-            Write-Host $metrics.UTF8_Bytes        -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Reporting about your clipboard content"
+    "-" * 40
+    Get-CharacterMap -Text $clipboardUnchanged
+    Write-Host ""
+    $metrics = Get-TextMetricsPs5 -Text $clipboardUnchanged
+    
+    Write-Host "UTF-8 Bytes        : " -NoNewline -ForegroundColor Gray
+    Write-Host $metrics.UTF8_Bytes        -ForegroundColor Yellow
 
-            Write-Host "UTF-16 Bytes       : " -NoNewline -ForegroundColor Gray
-            Write-Host $metrics.UTF16_Bytes       -ForegroundColor Cyan
+    Write-Host "UTF-16 Bytes       : " -NoNewline -ForegroundColor Gray
+    Write-Host $metrics.UTF16_Bytes       -ForegroundColor Cyan
 
-            Write-Host "UTF-16 Code Units  : " -NoNewline -ForegroundColor Gray
-            Write-Host $metrics.CharUnits         -ForegroundColor Green
+    Write-Host "UTF-16 Code Units  : " -NoNewline -ForegroundColor Gray
+    Write-Host $metrics.CharUnits         -ForegroundColor Green
 
-            Write-Host "Unicode CodePoints : " -NoNewline -ForegroundColor Gray
-            Write-Host $metrics.CodePoints        -ForegroundColor Magenta
+    Write-Host "Unicode CodePoints : " -NoNewline -ForegroundColor Gray
+    Write-Host $metrics.CodePoints        -ForegroundColor Magenta
 
-            Write-Host "Grapheme Clusters  : " -NoNewline -ForegroundColor Gray
-            Write-Host $metrics.Graphemes         -ForegroundColor Blue
+    Write-Host "Grapheme Clusters  : " -NoNewline -ForegroundColor Gray
+    Write-Host $metrics.Graphemes         -ForegroundColor Blue
 
-            Write-Host "ASCII Characters   : " -NoNewline -ForegroundColor Gray
-            Write-Host $metrics.ASCII_CharCount   -ForegroundColor DarkYellow
+    Write-Host "ASCII Characters   : " -NoNewline -ForegroundColor Gray
+    Write-Host $metrics.ASCII_CharCount   -ForegroundColor DarkYellow
 
-            Write-Host "Contains Non-ASCII : " -NoNewline -ForegroundColor Gray
-            Write-Host $metrics.Contains_NonASCII -ForegroundColor Red
-            "-" * 25
-            Write-Host ""
-            Get-CharacterMap -Text $clipboardUnchanged
-            Write-Host ""
-            # Additional regex-based statistics (ready for copy&paste)
-            # Character count
-            Write-Host "Character count (dot-matches-all, regex: `".`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, ".", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor Magenta
-            # digit count
-            Write-Host "Digit count (regex: `"\d`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\d", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta
-            # currency symbols count
-            Write-Host "Currency symbols count (regex: `"\p{Sc}`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\p{Sc}", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta    
-            # math symbols count
-            Write-Host "Math symbols count (regex: `"\p{Sm}`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\p{Sm}", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta         
-            # url count
-            Write-Host "URL count (regex: `"t\bhttps?://[^\s)`"]+`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\bhttps?://[^\s)`"]+", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta         
-            # Integer-like numbers count, optional sign
-            # e-mail count
-            Write-Host "E-mail count (regex: `"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta         
-            # Integer-like numbers count, optional sign
-            Write-Host "Integer-like numbers count (regex: `"[-+]?\d+`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "[-+]?\d+", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor Magenta
-            # Integer-like numbers unicode count, optional sign
-            Write-Host "Integer-like unicode count (regex: `"(?<![\p{L}\p{M}])[-+]?\d+(?![\p{L}\p{M}])`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "(?<![\p{L}\p{M}])[-+]?\d+(?![\p{L}\p{M}])", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta
-            # Decimal numbers dot/comma
-            Write-Host "Decimal numbers unicode count (regex: `"(?<![\p{L}\p{M}])[-+]?\d+([.,]\d+)?(?![\p{L}\p{M}])`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "(?<![\p{L}\p{M}])[-+]?\d+([.,]\d+)?(?![\p{L}\p{M}])", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor Magenta
-            # Unicodeword count
-            Write-Host "Word count unicode (no options, regex: `"\b[\p{L}\p{M}\p{N}]+\b`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\b[\p{L}\p{M}\p{N}]+\b", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor Magenta
-            #multiple spaces count
-            Write-Host "Multiple spaces count (regex: `" {2,}`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, " {2,}", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor Magenta
+    Write-Host "Contains Non-ASCII : " -NoNewline -ForegroundColor Gray
+    Write-Host $metrics.Contains_NonASCII -ForegroundColor Red
+    "-" * 25
+    Write-Host ""
+    # Additional regex-based statistics (ready for copy&paste)
+    # Character count
+    Write-Host "Character count (dot-matches-all, regex: `".`"): " -NoNewline 
+    Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, ".", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor Magenta
+    # digit count
+    Write-Host "Digit count (regex: `"\d`"): " -NoNewline 
+    Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\d", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta
+    # # currency symbols count
+    # Write-Host "Currency symbols count (regex: `"\p{Sc}`"): " -NoNewline 
+    # Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\p{Sc}", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta    
+    # # math symbols count
+    # Write-Host "Math symbols count (regex: `"\p{Sm}`"): " -NoNewline 
+    # Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\p{Sm}", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta         
+    # # url count
+    Write-Host "URL count (regex: `"t\bhttps?://[^\s)`"]+`"): " -NoNewline 
+    Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\bhttps?://[^\s)`"]+", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta         
+    # Integer-like numbers count, optional sign
+    # e-mail count
+    Write-Host "E-mail count (regex: `"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b`"): " -NoNewline 
+    Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta         
+    # # Integer-like numbers count, optional sign
+    # Write-Host "Integer-like numbers count (regex: `"[-+]?\d+`"): " -NoNewline 
+    # Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "[-+]?\d+", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor Magenta
+    # # Integer-like numbers unicode count, optional sign
+    # Write-Host "Integer-like unicode count (regex: `"(?<![\p{L}\p{M}])[-+]?\d+(?![\p{L}\p{M}])`"): " -NoNewline 
+    # Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "(?<![\p{L}\p{M}])[-+]?\d+(?![\p{L}\p{M}])", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor DarkMagenta
+    # # Decimal numbers dot/comma
+    # Write-Host "Decimal numbers unicode count (regex: `"(?<![\p{L}\p{M}])[-+]?\d+([.,]\d+)?(?![\p{L}\p{M}])`"): " -NoNewline 
+    # Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "(?<![\p{L}\p{M}])[-+]?\d+([.,]\d+)?(?![\p{L}\p{M}])", [System.Text.RegularExpressions.RegexOptions]::Singleline)).Count -ForegroundColor Magenta
+    # # Unicodeword count
+    # Write-Host "Word count unicode (no options, regex: `"\b[\p{L}\p{M}\p{N}]+\b`"): " -NoNewline 
+    # Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\b[\p{L}\p{M}\p{N}]+\b", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor Magenta
+    # #multiple spaces count
+    # Write-Host "Multiple spaces count (regex: `" {2,}`"): " -NoNewline 
+    # Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, " {2,}", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor Magenta
 
-            # Sentence count
-            Write-Host "Sentence count (no options, regex: `"(?<=[\.!\?])\s+`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "(?<=[\.!\?])\s+", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor DarkMagenta
-            # Non-empty line count
-            Write-Host "Non-empty line count (multiline, regex: `"^(?=.*\S).+$`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "^(?=.*\S).+$", [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count -ForegroundColor Blue
-            # Line count
-            Write-Host "Linebreak count (no options, regex: `"\r?\n`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\r?\n", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor DarkBlue
-            # Line count
-            Write-Host "Line count (multiline, regex: `"^`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "^", [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count -ForegroundColor DarkBlue
-            #field count
-            Write-Host "Fields, space separated, like words (no options, regex: `"\s*\S+\s*`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\s*\S+\s*", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor Magenta
-            #comma count +1
-            Write-Host "Fields, comma separated_ commas +1 (no options, regex: `",`"): " -NoNewline 
-            Write-Host (([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, ",", [System.Text.RegularExpressions.RegexOptions]::None)).Count+1) -ForegroundColor Magenta
-            # Word count
-            Write-Host "Word count (no options, regex: `"\b\w+\b`"): " -NoNewline 
-            Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\b\w+\b", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor DarkMagenta
+    # Sentence count
+    Write-Host "Sentence count (no options, regex: `"(?<=[\.!\?])\s+`"): " -NoNewline 
+    Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "(?<=[\.!\?])\s+", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor DarkMagenta
+    # Non-empty line count
+    Write-Host "Non-empty line count (multiline, regex: `"^(?=.*\S).+$`"): " -NoNewline 
+    Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "^(?=.*\S).+$", [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count -ForegroundColor Blue
+    # # Line count
+    # Write-Host "Linebreak count (no options, regex: `"\r?\n`"): " -NoNewline 
+    # Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\r?\n", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor DarkBlue
+    # # Line count
+    Write-Host "Line count (multiline, regex: `"^`"): " -NoNewline 
+    Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "^", [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count -ForegroundColor DarkBlue
+    #field count
+    Write-Host "Fields, space separated, like words (no options, regex: `"\s*\S+\s*`"): " -NoNewline 
+    Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\s*\S+\s*", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor Magenta
+    #comma count +1
+    Write-Host "Fields, comma separated,i.e. commas +1 (no options, regex: `",`"): " -NoNewline 
+    Write-Host (([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, ",", [System.Text.RegularExpressions.RegexOptions]::None)).Count+1) -ForegroundColor Magenta
+    # Word count
+    Write-Host "Word count (no options, regex: `"\b\w+\b`"): " -NoNewline 
+    Write-Host ([System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, "\b\w+\b", [System.Text.RegularExpressions.RegexOptions]::None)).Count -ForegroundColor DarkMagenta
 
-            $mc = $null # reset variable for later use, previous values are not needed anymore
-            foreach ($pattern in $searchLines) {
-                if (-not $r) { # Literal search, not regex: escape special characters
-                    $pattern = [regex]::Escape($pattern)
-                }
-                $mc += [System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, $pattern, $regexOptions)
-            }
-            Write-Host "You provided " -NoNewline
-            Write-Host $searchLines.Count -NoNewline -ForegroundColor Yellow
-            Write-Host " search pattern(s) as " -NoNewline
-            if ($r) { Write-Host "regex. " -ForegroundColor Cyan -NoNewline }
-                else { Write-Host "literal text. " -ForegroundColor Green -NoNewline }
-            Write-Host "Your pattern(s) with your option(s) matched: " -NoNewline 
-            Write-Host $mc.Count -ForegroundColor Red        
+    $mc = $null # reset variable for later use, previous values are not needed anymore
+    foreach ($pattern in $searchLines) {
+        if (-not $r) { # Literal search, not regex: escape special characters
+            $pattern = [regex]::Escape($pattern)
+        }
+        $mc += [System.Text.RegularExpressions.Regex]::Matches($clipboardUnchanged, $pattern, $regexOptions)
+    }
+    Write-Host "You provided " -NoNewline
+    Write-Host $searchLines.Count -NoNewline -ForegroundColor Yellow
+    Write-Host " search pattern(s) as " -NoNewline
+    if ($r) { Write-Host "regex. " -ForegroundColor Cyan -NoNewline }
+        else { Write-Host "literal text. " -ForegroundColor Green -NoNewline }
+    Write-Host "Your pattern(s) with your option(s) matched: " -NoNewline 
+    Write-Host $mc.Count -ForegroundColor Red        
 }
 
 function invoke-Replacement() {
@@ -1041,7 +1042,8 @@ function Invoke-PathProcessor {
             Write-Host "`n=== FILE: $p ===" -ForegroundColor Cyan
             
             try {
-                $text = Get-Content -Path $p -Raw -ErrorAction Stop
+                # $text = Get-Content -Path $p -Raw -ErrorAction Stop
+                $text = Get-Content -Path $p -Raw -Encoding UTF8
                 if($null -eq $text -or $text -eq '') {
                      Write-Host "Empty file. No matches." -ForegroundColor Yellow 
                      continue
