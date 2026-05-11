@@ -1043,7 +1043,7 @@ function Invoke-PathProcessor {
             
             try {
                 # $text = Get-Content -Path $p -Raw -ErrorAction Stop
-                $text = Get-Content -Path $p -Raw -Encoding UTF8
+                $text = Get-Content -Path $p -Raw -Encoding UTF8 -ErrorAction Stop
                 if($null -eq $text -or $text -eq '') {
                      Write-Host "Empty file. No matches." -ForegroundColor Yellow 
                      continue
@@ -1073,10 +1073,10 @@ function Invoke-PathProcessor {
 
             foreach ($file in $files) {
 
-                if(isTextFile $file){
+                if(isTextFile $file.FullName){
                     # Try reading file BEFORE printing filename
                     try {
-                        $text = Get-Content -Path $file.FullName -Raw -ErrorAction Stop
+                        $text = Get-Content -Path $file.FullName -Raw -Encoding UTF8 -ErrorAction Stop
                     }
                     catch {
                         # Not readable as text -> skip silently
