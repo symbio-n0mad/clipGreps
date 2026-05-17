@@ -770,7 +770,11 @@ function show-Stats() {
     Write-Host $metrics.ASCII_CharCount   -ForegroundColor DarkYellow
 
     Write-Host "Contains Non-ASCII : " -NoNewline -ForegroundColor Gray
-    Write-Host $metrics.Contains_NonASCII -ForegroundColor Red
+    if ($metrics.Contains_NonASCII) {
+        Write-Host $metrics.Contains_NonASCII -ForegroundColor Red
+    } else {
+        Write-Host $metrics.Contains_NonASCII -ForegroundColor Green
+    }
     "-" * 25
     Write-Host ""
     # Additional regex-based statistics (ready for copy&paste)
@@ -1134,7 +1138,18 @@ if (
 ) {
     $interactive = $true
 }
-
+# if (
+#     (-not $searchFolderPath -or $searchFolderPath.Count -eq 0) -and    # No folder         and
+#     (-not $searchFilePath -or $searchFilePath.Count -eq 0) -and      # No file           and
+#     (-not $mappingFile -or $mappingFile.Count -eq 0) -and      # No mapping file   and
+#     (-not $searchText -or $searchText.Count -eq 0)  # No CLI args
+# ) {
+#     $interactive = $true
+# }
+# wenn search folder aber kein replace folder dann grep
+# wenn search file aber kein replace file dann grep
+# wenn replace und search folder dann subst
+# wenn replace und search file dann subs
 
 # $C is $A and $B combined, to reduce variable amount we sum them up here  # used for context w grepping
 $A += $C
