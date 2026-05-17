@@ -1138,6 +1138,19 @@ if (
 ) {
     $interactive = $true
 }
+if (
+    ($searchText -or $searchFilePath -or $searchFolderPath) -and
+    -not ($replaceText -or $replaceFilePath -or $replaceFolderPath -or $interactive)
+) {
+    $extractMatch = $true
+}
+if (
+    (($searchText -or $searchFilePath -or $searchFolderPath) -and
+    ($replaceText -or $replaceFilePath -or $replaceFolderPath))
+) {
+    $substitute = $true
+}
+if ( $mappingFile ){ $substitute=$true }
 # if (
 #     (-not $searchFolderPath -or $searchFolderPath.Count -eq 0) -and    # No folder         and
 #     (-not $searchFilePath -or $searchFilePath.Count -eq 0) -and      # No file           and
