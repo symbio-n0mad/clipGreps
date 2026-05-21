@@ -313,7 +313,7 @@ The following tables lists all supported .NET regex modifiers evaluated in the s
 
 | Modifier | RegexOptions Enum Value        | Description |
 |---------|---------------------------------|-------------|
-| **n**   | `None`                          | No additional options enabled. Default behavior. |
+|         | `None`                          | No additional options enabled. Default behavior. |
 | **i**   | `IgnoreCase`                    | Case-insensitive matching. |
 | **m**   | `Multiline`                     | `^` and `$` match line start and line end instead of only the beginning/end of the entire input. |
 | **s**   | `Singleline`                    | The dot (`.`) also matches newline characters (`\n`). |
@@ -323,7 +323,7 @@ The following tables lists all supported .NET regex modifiers evaluated in the s
 
 | Modifier | RegexOptions Enum Value        | Description |
 |---------|---------------------------------|-------------|
-| **e**   | `ExplicitCapture`               | Only named groups (e.g. `(?<name>...)`) are captured. |
+| **n**   | `ExplicitCapture`               | Only named groups (e.g. `(?<name>...)`) are captured. |
 | **c**   | `Compiled`                      | Compiles the regex for improved performance when reused repeatedly. |
 | **u**   | `CultureInvariant`              | Culture‑invariant matching, ignoring locale-specific rules. |
 | **j**   | `ECMAScript`                    | Enables ECMAScript‑compatible regular expression behavior. |
