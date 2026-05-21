@@ -606,14 +606,14 @@ function set-RegexFlags() {
     # partly copilot (boilerplate)
     foreach ($char in $script:flags.ToCharArray()) {  # Convert flag string to regex options
         switch ($char) {
-            'n' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::None}
+            # '0' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::None}
             'i' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::IgnoreCase }
             'm' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::Multiline }
             's' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::Singleline }
             'x' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::IgnorePatternWhitespace }
 
             # exotic options:
-            'e' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::ExplicitCapture }
+            'n' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::ExplicitCapture }
             'c' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::Compiled }
             'u' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::CultureInvariant }
             'j' { $regexOptions = $regexOptions -bor [System.Text.RegularExpressions.RegexOptions]::ECMAScript }
