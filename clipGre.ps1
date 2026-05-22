@@ -982,7 +982,7 @@ function invoke-Textfilter() {
             Write-Host ""
         }
     }
-    Write-Host ""
+    #Write-Host ""
     if (($writeOut.ToString().Length -gt 0) -and $Script:fileOutput -and ($Script:PSBoundParameters.ContainsKey("plain") -eq $true)) {
         write-File($writeOut.ToString())
     }
