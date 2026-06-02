@@ -187,10 +187,14 @@ Several features are triggered automatically when certain flags or inputs are us
 These options are **optional** because the script attempts to infer which mode you intended based on the provided inputs. However, you may explicitly combine them if needed, where applicable.
 
 - **Grep / Extract match** (`-grep / -g`)  
+  - Activated if only one string is provided as CLI argument
   - Prints only matching lines (or extracted text)  
   - Context options available (`-A`, `-B`, `-C`)
+  - Outputs literal match and exact position
+  - Match count by default
 
 - **Substitution** (`-substitute` / `-s`)  
+  - Second positional CLI string argument specifies substitution string, activating substitution mode
   - Performs *search & replace*  
   - Activated automatically through mapping files or `-revert`
   - Overridden by `-delete`
@@ -300,7 +304,7 @@ These options are **optional** because the script attempts to infer which mode y
   - Prints timing information for pattern application and script execution
 
 - **Statistics** (`-stats` / `-n`)  
-  - Displays counts of matches, counts occurence of various text-properties guided by regex
+  - Displays clipboard text statistics, counts of matches and counts occurence of various text-properties guided by regex
 
 - **Help / Usage overview** (`-help` / `-h`)  
   - Displays all flags and usage instructions
