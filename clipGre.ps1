@@ -651,25 +651,27 @@ function get-SearchnReplaceExpressions() {
     if ($replaceText) {  # Explicitly allowed to be empty (for deletion)
         $replaceLinesInside += $replaceText
     }
-
+    
     # Get list of text files from each provided folder path
     $searchFolderPath = $searchFolderPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }  # Filter empty entries,
+    
     foreach ($folder in $searchFolderPath) {
         if (Test-Path -LiteralPath $folder) {
-            $searchFilePath += Get-ChildItem -LiteralPath $folder -Filter *.txt -File |
+            $searchFilePath = @($searchFilePath)
+            $searchFilePath += @(Get-ChildItem -LiteralPath $folder -Filter *.txt -File |
                             Sort-Object Name |
-                            Select-Object -ExpandProperty FullName
+                            Select-Object -ExpandProperty FullName)
         }
     }
     $replaceFolderPath = $replaceFolderPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } # Filter empty entries,
     foreach ($folder in $replaceFolderPath) {
         if (Test-Path -Path $folder) {
-            $replaceFilePath += Get-ChildItem -LiteralPath $folder -Filter *.txt -File |
+            $replaceFilePath = @($replaceFilePath)
+            $replaceFilePath += @(Get-ChildItem -LiteralPath $folder -Filter *.txt -File |
                             Sort-Object Name |
-                            Select-Object -ExpandProperty FullName
+                            Select-Object -ExpandProperty FullName)
         }
     }
-
     $searchFilePath = $searchFilePath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } # For case of wrong user input, filter empty entries
     $replaceFilePath = $replaceFilePath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } # For case of wrong user input,
 
@@ -982,7 +984,7 @@ function invoke-Textfilter() {
             Write-Host ""
         }
     }
-    #Write-Host ""
+    # Write-Host ""
     if (($writeOut.ToString().Length -gt 0) -and $Script:fileOutput -and ($Script:PSBoundParameters.ContainsKey("plain") -eq $true)) {
         write-File($writeOut.ToString())
     }
@@ -1140,7 +1142,7 @@ if (
 }
 if (
     ($searchText -or $searchFilePath -or $searchFolderPath) -and
-    -not ($replaceText -or $replaceFilePath -or $replaceFolderPath -or $interactive)
+    -not ($replaceText -or $replaceFilePath -or $replaceFolderPath -or $interactive -or $delete -or $substitute)
 ) {
     $extractMatch = $true
 }
@@ -1230,7 +1232,8 @@ do { # (Endless) loop start
         $expressions = get-SearchnReplaceExpressions
         $searchLines += $expressions.SearchFor
         $replaceLines += $expressions.ReplaceWith
-
+        Write-Host $searchLines
+        Read-Host "hi du"
         # Filling up entries for replacement, if too less are provided corresponding search terms will be deleted (replaced by NULL)
         while ($replaceLines.Count -lt $searchLines.Count) {  # Filling replace terms to amount of search terms (possible because replace terms are assumed empty for missing lines)
             $replaceLines += '' # because empty lines are not recognized as lines, array will be filled with empty entries here for every empty line
