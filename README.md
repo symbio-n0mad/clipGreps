@@ -380,6 +380,9 @@ clipGre.ps1 -r '(\d+?|\D+)' -benchmark -loop 10 -ff 'data.db'
 # regex search & replace with flags (clipbaord)
 clipGre.ps1 -r '-.-' ', ' 'ms'
 
+# literal search & replace with flags (clipbaord)
+clipGre.ps1 '|'  '{!}' 
+
 # very explicit search and search & replace with persisting terminal for reading output
 clipGre.ps1 -r -search '-.-' -replace ', ' -flags 'ms' -substitute -grep -persist
 
@@ -401,5 +404,10 @@ clipGre.ps1 -search 'Jens@Hofmann.biz','Albert Schrödinger','123.999' -replace 
 # Finds 'foo...bar', uses flags 'si' and prints context lines before and after match
 clipGre.ps1 -r -flags si -B 2 -A 1 'foo.{2,4}bar' 
 
+# replace 'SOLUTION<TAB>1' by '<TAB>SOLUTION<WHITEPACE(s)>3'
+clipGre.ps1 -r '(SOLUTION\s+)1' "`t`${1}3"
+
+# replace newline(s) by a tab - one new line: '[\r][\n]'
+clipGre.ps1 -r '[\n\r]+' "`t"
 
 ```
