@@ -404,10 +404,19 @@ clipGre.ps1 -search 'Jens@Hofmann.biz','Albert Schrödinger','123.999' -replace 
 # Finds 'foo...bar', uses flags 'si' and prints context lines before and after match
 clipGre.ps1 -r -flags si -B 2 -A 1 'foo.{2,4}bar' 
 
-# replace 'SOLUTION<TAB>1' by '<TAB>SOLUTION<WHITEPACE(s)>3'
+# replace 'SOLUTION<TAB>1' by '<TAB>SOLUTION<WHITEPACE(s)>3' (PHREEQC)
 clipGre.ps1 -r '(SOLUTION\s+)1' "`t`${1}3"
+
+# change a Surf- modelfile to SurfO-0.5 (1-pK) (PHREEQC)
+clipGre.ps1 −r 'Surf([a−zA−Z]{1,2})','Surf−' 'SurfO$1+0.5','SurfO−0.5’'
 
 # replace newline(s) by a tab - one new line: '[\r][\n]'
 clipGre.ps1 -r '[\n\r]+' "`t"
+
+# get overview over a python file (classes, methods, returns)
+clipGre.ps1 -r '\s*def\s+(\w+\.)*\w+\(.*?\):|\s*class\s+(\w+\.)*\w+(\(.*?\))?:|\s*return.*$' -ff "solver.py" -plain "" -flags m
+
+# search your project folder for python docstrings
+clipGre.ps1 -r '("""|'''''' ).*?\1' -ff "."
 
 ```
