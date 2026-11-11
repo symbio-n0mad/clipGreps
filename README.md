@@ -336,11 +336,11 @@ The following tables lists all supported .NET regex modifiers evaluated in the s
 
 ## Safety & Security
 
-> TL;DR: By default, this tool assumes trusted, user‑local input. If you want to be absolutely safe against ReDoS, enable **NonBacktracking** (`-m b`) to guarantee linear performance, sacrificing backtracking.
+Check your threat model, as you are supposed to be the one providing the input!
 
 This tool processes **only the current user’s input** (clipboard and/or local files you explicitly provide). Under this assumption, the risk of **Regular Expression Denial of Service (ReDoS)** or other super‑linear (exponential) matches is generally out of scope.
 
-If you still want to be extra cautious, you can **enforce linear‑time matching** by enabling the **NonBacktracking** engine mode via your regex modifiers. This guarantees **no catastrophic backtracking** and therefore avoids ReDoS scenarios.
+If you still want to be extra cautious, you can **enforce linear‑time matching** by enabling the **NonBacktracking** engine mode via your regex modifiers. This guarantees **no catastrophic backtracking** and therefore avoids auto-ReDoS scenarios.
 
 ### What this means
 
