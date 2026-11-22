@@ -347,6 +347,16 @@ If you still want to be extra cautious, you can **enforce linear‑time matching
   - Only available in PowerShell 7 (.NET 7+); Windows PowerShell 5.1 reports an error
 
 
+## Tests
+
+`tests/Test-ClipGre.ps1` runs the script with many option combinations and checks output, clipboard and written files. It needs no extra modules (no Pester) and uses a simulated clipboard, so your real clipboard is not touched:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tests\Test-ClipGre.ps1
+```
+
+The exit code is the number of failed checks. Interactive prompts are not covered.
+
 ## Why PowerShell?
 
 Why PowerShell? Simple: because it’s *already there*.  
