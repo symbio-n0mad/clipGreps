@@ -18,7 +18,7 @@ These are the core, productive features:
 - Optional **RegEx** mode (`-r`) and **case-insensitive mode** (`-i`)  
 - Can also be applied to **files or folders** (`-files "C:\path\to"`), optionally 
   - recursively (`-recurse`)
-  - on binary files (`-scanBinary`)
+  - on binary files (`-IncludeBinary`)
 
 
 
@@ -34,7 +34,7 @@ clipGre.ps1 'eggsample'
 clipGre.ps1 'eggsample' 'example'
 
 # Apply textfilter to folder and sub-folder content, recursively, case-insensitive
-clipGre.ps1 'glasses' -files 'c:\path\to\folder' -recurse -i
+clipGre.ps1 'glasses' -Path 'c:\path\to\folder' -Recurse -i
 
 # Regex search for text and print context lines before (2) and after (1) the match
 clipGre.ps1 -r -B 2 -A 1 'c.t\.' 
@@ -101,56 +101,44 @@ To call the script from **any directory**, add its location to your user `PATH` 
 
 Below is a complete overview of all functional capabilities. Several options interact with each other and may implicitly activate related features. All options are **optional**, and the script attempts to **infer intent automatically**, but does not necessarily hinder you from attempting impossible operations ;-)
 
+Run `clipGre.ps1 -h` for a compact overview in the terminal.
+
 ---
 
 ### Search & Replace Inputs
 
-- **Inline search strings** (`-searchText <STRING>`, `-st <STRING>`)  
-  - Allowed as first positional argument without keyword
-  - Provided as a single string or an array  
-    - Example: `-st "foo","bar","baz"`
-  
-- **Inline replacement strings** (`-replaceText <STRING>`, `-rt <STRING>`)  
-  - Allowed as second positional argument without keyword
-  - Single string or array  
-    - Example: `-rt "one","two","three"`
+- **Inline search strings** (`-Search <STRING[]>`)
+  - First positional argument, the option name may be omitted
+  - Single string or array, e.g. `-Search "foo","bar","baz"`
 
-- **Search file** (`-searchFile <FILE>`)  
-  - Single string or array
-  - **Each line** is treated as **one search pattern**  
-  - Empty lines are deprecated
+- **Inline replacement strings** (`-Replace <STRING[]>`)
+  - Second positional argument, the option name may be omitted
+  - Single string or array, e.g. `-Replace "one","two","three"`
+  - An empty string (`''`) deletes the matches
 
-- **Replace file** (`-replaceFile <FILE>`)  
-  - Single string or array  
-  - **Each line** corresponds to **a replacement pattern**  
-  - Empty patterns = *deletions*
+- **Regex flags** (`-RegexFlags <FLAGS>` / `-flags <FLAGS>`)
+  - Third positional argument, the option name may be omitted
+  - Implies `-Regex`, see the table below
 
-- **Search folder** (`-searchFolder <FOLDER>`)  
-  - Single string or array, one or multiple directories 
-  - Uses only `*.txt` files  
-  - Files are *sorted alphabetically*  
-  - File count must match `-replaceFolder`  
-  - Empty files are **deprecated**
+- **Search file** (`-SearchFile <FILE[]>`) / **Replace file** (`-ReplaceFile <FILE[]>`)
+  - **Each line** is **one pattern** / **one replacement**
+  - Empty lines in a replace file are *deletions*
 
-- **Replace folder** (`-replaceFolder <FOLDER>`)  
-  - Single string or array  
-  - Identical behaviour as search folder  
-  - **Empty patterns = deletions**
+- **Search folder** (`-SearchFolder <FOLDER[]>`) / **Replace folder** (`-ReplaceFolder <FOLDER[]>`)
+  - All `*.txt` files directly inside the folder, *sorted alphabetically*
 
+- **Pairing**: inline strings, files and folders of the search side form one list, the replace side another one; both lists are paired **by position**. Missing replacements count as empty (= deletion); more replacements than search patterns is an error.
 
-- **Whole-file mode** (`-wholeFile` / `-f`)  
-  - *Every input file is considered one single expression* 
+- **Pattern per file** (`-PatternPerFile`)
+  - *Every pattern file is one single pattern* (its final line break is removed)
   - Useful for multi-line regex patterns or multiline literal strings
-    - Best combined with `-flags "x"` for use as regex
+    - Best combined with `-flags "x"` for use as regex (see `assets/matchEngGerDate.txt`)
 
-
-- **Mapping file** (`-mappingFile <FILE>` , aliases: `-lazyFile <FILE>`, `-lazyPairs <FILE>`), *lazy mode* 
-  - Single string or array  
-  - Contains *pairs* of search → replace entries  
-  - Automatically enables **substitution mode** (`-substitute`)  
-  - Ideal for lists of mappings where maintaining separate search/replace files is inconvenient  
-  - Ensures consistent pairing without having to manage file order manually  
-  - Lines typically follow the format:  
+- **Pair file** (`-PairFile <FILE[]>`)
+  - Contains *pairs* of search → replace lines, a folder means all its `*.txt` files
+  - Automatically enables **substitution**
+  - Pairs are kept together, independent of other pattern sources
+  - A warning is shown if the number of lines is odd
     ```
     1. searchValue1
     2. replaceValue1
@@ -159,159 +147,165 @@ Below is a complete overview of all functional capabilities. Several options int
     etc.
     ```
 
----
+- **Empty search patterns** match at every position (between all characters) - that is regex behaviour, a warning is shown.
 
+- All pattern files are read as UTF-8 (a BOM, also UTF-16, is recognised).
+
+---
 
 ### Implicit Behaviour
 
-Several features are triggered automatically when certain flags or inputs are used:
-
-
 | Condition | Implicit Action |
 |-----------|------------------|
-| First unnamed CLI argument | Treated as value for **`-search`** |
-| Second unnamed CLI argument | Treated as value for **`-replace`** |
-| Third unnamed CLI argument  | Treated as value for **`-flags`** |
-| No search/replace values given | Activates **interactive mode** (`-interactive`) |
-| `-A`, `-B` or `-C` provided | Enables **grep mode** (`-grep`) |
-| `-flags` / `-modifier` used | Enables **regex mode** (`-r`) |
-| `-mappingFile` used | Enables **substitution** (`-substitute`) |
-| `-revert` used | Enables **substitution** (`-substitute`) |
-| `-fileName` used | Enables **write to file** (`-fileOutput`) |
-| `-delete` used | *Overwrites* **substitution** |
+| First / second / third unnamed CLI argument | **`-Search`** / **`-Replace`** / **`-RegexFlags`** |
+| No search pattern (and no text analysis option) | Activates **interactive mode** (`-Interactive`) |
+| Search pattern(s) without replacement | **Grep mode** |
+| Any replacement given (incl. `-PairFile`) | **Substitution** |
+| `-Delete` or `-Swap` used | **Substitution** |
+| `-A`, `-B`, `-C`, `-OnlyMatching`, `-CountOnly`, `-FilesWithMatches`, `-InvertMatch` | **Grep mode** |
+| `-Separator` used | **`-OnlyMatching`** for grep output |
+| `-RegexFlags` used | **Regex mode** (`-Regex`) |
+| `-OutFile` used | **Write to file** (`-Save`) |
+
+Grep and substitution can be combined: grep shows the matches in the original text, then the text is substituted.
 
 ---
 
-### Mode Selection: Extract / Replace / Delete
+### Mode Selection: Grep / Substitute / Delete / Swap
 
-These options are **optional** because the script attempts to infer which mode you intended based on the provided inputs. However, you may explicitly combine them if needed, where applicable.
+- **Grep** (`-Grep`)
+  - Prints each matching line **once**, with line number, matches highlighted (red, bold where the console supports it)
+  - Context lines with `-A`, `-B`, `-C` (marked with `-`, groups separated by `--`, like GNU grep)
+  - Shows the match count; index and length of every match with `-Verbose`
 
-- **Grep / Extract match** (`-grep / -g`)  
-  - Activated if only one string is provided as CLI argument
-  - Prints only matching lines (or extracted text)  
-  - Context options available (`-A`, `-B`, `-C`)
-  - Outputs literal match and exact position
-  - Match count by default
+- **Substitution** (`-Substitute`)
+  - Performs *search & replace*; the pairs are applied one after another
+  - In literal mode `$` in the replacement is taken literally; in regex mode `$1`, `${name}` etc. refer to groups
 
-- **Substitution** (`-substitute` / `-s`)  
-  - Second positional CLI string argument specifies substitution string, activating substitution mode
-  - Performs *search & replace*  
-  - Activated automatically through mapping files or `-revert`
-  - Overridden by `-delete`
+- **Delete** (`-Delete`)
+  - Removes the matches, replacements are ignored
 
-- **Revert substitution** (`-revert` / `-e`)  
-  - Swaps the provided search and replace values
-
-- **Delete** (`-delete` / `-d`)  
-  - Removes the matching search pattern  
-  - Useful for cleaning lists or rapidly filtering content
+- **Swap** (`-Swap` / `-reverse`)
+  - Undoes a literal substitution with the same arguments: search and replacement are swapped
+  - The pairs are applied in **reverse order**, so chains like `A→B`, `B→C` are undone correctly (`C→B`, then `B→A`)
+  - Pairs with an empty replacement (deletions) are **skipped** with a warning - deleted text cannot be restored
+  - Regex substitutions can generally not be undone this way (a warning is shown)
 
 ---
 
 ### Regex Features
 
-- **Enable RegEx mode** (`-regEx` / `-r`)  
+- **Enable RegEx mode** (`-Regex` / `-r`)
   - Interprets all search strings as regular expressions (.NET style)
 
-- **Modifier flags** (`-flags "imsx..."` / `-m`)  
-  - Allowed as third positional argument without keyword
-  - Enables regex implicitly and passes flags directly to the .NET engine  
-  - Example: `-m "imx"`
-  - For available options see table below
+- **Modifier flags** (`-RegexFlags "imsx..."` / `-flags`)
+  - Enables regex implicitly, for available flags see the table below
 
-- **Case-insensitive mode** (`-ignoreCase` / `-i`)  
+- **Case-insensitive mode** (`-IgnoreCase` / `-i`)
   - Works for both literal and regex patterns
 
 ---
 
+### Apply to Files Instead of Clipboard Content
 
+- **Input path** (`-Path <PATH[]>` / `-files` / `-inputPath`)
+  - Files, folders or wildcards (e.g. `*.log`); default target is the clipboard
+  - Folders: all contained files are read
+  - Files that look binary are skipped
+  - Grep prints to the console, the substitution result of all files is joined (see `-Separator`) and put into the clipboard (or a file)
 
-### Apply to files instead of clipboard content
+- **Recursive search** (`-Recurse`) in subfolders
 
-- **Apply to file** (`-ff <FILE>` / `-files <FOLDER>`) rather than clipboard
-  - If not provided standard target is the clipboard
-  - May be an *array* of *paths*
-  - Only scans non-binary files
-  - If the path is a folder, all contained files will be read
-  - Textfilter outputs to console, substitution result will reside in clipboard
+- **Include binary** (`-IncludeBinary`) files
+  - Does not check files for NUL bytes
 
-- **Recursive search** in subfolders (`-recurse` / `-subdirs`)  
-  - If path is a folder, this option will activate recursive search for all subfolders
-
-- **Scan binary** (`-scanBinary` / `-sb`) files
-  - Does not check the file for nullbytes
-  - Textfilter is applied to all files, including binary
+- **In-place substitution** (`-InPlace`)
+  - Writes the result back into each changed input file, keeping its encoding
+  - A backup `<file>.bak` is created before
 
 ---
 
-
 ### Output Handling
 
-- **Raw filter** output (`-plain <STRING>` / `-raw <STRING>`)  
-  - Output from textfilter will be reduced to only matches
-  - Match separation with specified string, empty strings allowed
-  - Allows `\t`, `\r` and `\n` in the string for formatting
+- **Only matches** (`-OnlyMatching`), e.g. to build your own list of matches
+  - Output is reduced to the matches, each followed by the separator
 
-- **Write to file** (`-w` / `-write`)  
-  - Redirects output to a file instead of copying to clipboard
+- **Separator** (`-Separator <STRING>`)
+  - Separator for `-OnlyMatching` (default: line break), empty string allowed
+  - Also joins the substitution results of several files
+  - `\t`, `\n`, `\r` and `\\` are converted - this also works in single quotes and desktop shortcuts
 
-- **Explicit filename** (`-saveAs <FILE>` / `-o <FILE>`)  
-  - Custom filename  
-  - A timestamp is appended always
+- **Count only** (`-CountOnly`) - only the number of matches (per file)
 
-- **Default filename**  
-  - When no name is provided, a timestamp is used automatically
-  - Even with provided filename, a timestamp is added
+- **Files with matches** (`-FilesWithMatches`) - only the names of files containing matches
+
+- **Invert match** (`-InvertMatch`) - lines *without* matches
+
+- **Write to file** (`-Save`)
+  - Writes the substitution result (or the grep output) to `Output_<timestamp>.txt` instead of the clipboard
+
+- **Explicit filename** (`-OutFile <FILE>`)
+  - Folder and extension are kept, a timestamp is always appended to the name
+  - With grep and substitution together, the grep output goes to `<name>_grep_<timestamp>`
+  - With `-Repeat` / `-Endless` the run number is added
 
 ---
 
 ### Repetition & Looping
 
 - **Looping** re-reads search (and replace) values
-  - Specified path(s) for pattern(s) are freshly evaluated in every iteration
-  - Input file path(s) are also re-read repeatedly
-  - CLI arguments are not re-read, but `-interactive`-input if specified
+  - Pattern files and input files are freshly read in every run
+  - CLI arguments are not re-read, but `-Interactive` input is asked again
 
-- **Endless loop mode** (`-endless` / `-oo`)  
-  - Repeats the selected operation indefinitely  
+- **Endless loop mode** (`-Endless` / `-oo`)
+  - Repeats the selected operation indefinitely, stop with Ctrl+C
   - Intended for fullscreen or continuously updated applications
-  - Requires manual termination
 
-- **Loop count** (`-loop <N>` / `-l <N>`)  
+- **Repeat count** (`-Repeat <N>`)
   - Execute the operation N times
-  - Overridden by `-endless`
 
-- **Timeout between loops** (`-timeout <SECONDS>` / `-t <SECONDS>` )  
-  - Delays execution before exiting  
-  - Negative values delay execution *before* running the action  
-  - Recommended with looping `-endless` or `-loop <N>`
+- **Delay** (`-Delay <SECONDS>`)
+  - Waits after each run, `0.5` and `0,5` are both accepted
+  - Negative values or `-DelayFirst` wait *before* each run instead
+
+---
+
+### Text Analysis
+
+- **Statistics** (`-Stats`)
+  - Character map, text metrics and regex based counts (characters, digits, URLs, e-mails, sentences, lines, words, fields) of the input text, plus the match count of your patterns
+  - Every count shows its regex, ready for copy & paste
+
+- **Extended statistics** (`-ExtendedStats`)
+  - Additionally counts integers, decimal numbers, Unicode words, currency and math symbols, multiple spaces and line breaks
+
+- **Character map** (`-CharMap`) only
+  - Frequency of every character (grapheme) with Unicode code points
+  - `-SortBy Count` (default) or `-SortBy Char`
+  - `-ShowWhitespace` shows space, tab, CR and LF as visible symbols
+
+- **Text metrics** (`-TextMetrics`) only
+  - UTF-8/UTF-16 bytes, code units, code points, grapheme clusters, ASCII check
 
 ---
 
 ### Additional Features
 
-- **Interactive prompt** (`-interactive` / `-ia`)  
-  - Allows entering search/replace strings manually at runtime  
-  - Automatically activated when no search/replace arguments are provided
-  - Only offers search (& replace), regex with flags optionally
-    - no deployment of paths
+- **Interactive prompt** (`-Interactive` / `-ia`)
+  - Asks for search/replace strings (and, if not given, mode and regex usage) at runtime
+  - Automatically activated when no search pattern is provided
 
-- **Require confirmation before exit** (`-persist` / `-p`)  
-  - Keeps the terminal open until the user presses Enter  
-  - Useful for manual inspection of output
+- **Pause at end** (`-PauseAtEnd` / `-pause`)
+  - Waits for a key press after each run, useful for desktop shortcuts
 
-- **Benchmarking** (`-benchmark` / `-bm`)  
-  - Prints timing information for pattern application and script execution
+- **Benchmarking** (`-Benchmark`)
+  - Prints timing information for grep, substitution and the whole script
 
-- **Statistics** (`-stats` / `-n`)  
-  - Displays clipboard text statistics, counts of matches and counts occurence of various text-properties guided by regex
-
-- **Help / Usage overview** (`-help` / `-h`)  
-  - Displays all flags and usage instructions
+- **Help / Usage overview** (`-Help` / `-h`)
 
 ---
 
-## Regex Modifier Table (`-m` / `-modifier` / `-flags` option)
+## Regex Modifier Table (`-RegexFlags` / `-flags` option)
 
 The following tables lists all supported .NET regex modifiers evaluated in the script:
 
@@ -332,7 +326,7 @@ The following tables lists all supported .NET regex modifiers evaluated in the s
 | **u**   | `CultureInvariant`              | Culture‑invariant matching, ignoring locale-specific rules. |
 | **j**   | `ECMAScript`                    | Enables ECMAScript‑compatible regular expression behavior. |
 | **r**   | `RightToLeft`                   | Performs the match from right to left. |
-| **b**   | `NonBacktracking`               | Uses a non‑backtracking regex engine mode (faster, but with feature limitations). |
+| **b**   | `NonBacktracking`               | Uses a non‑backtracking regex engine mode (faster, but with feature limitations). **Requires PowerShell 7** - Windows PowerShell 5.1 shows an error. |
 
 ## Safety & Security
 
@@ -352,8 +346,19 @@ If you still want to be extra cautious, you can **enforce linear‑time matching
 ### How to enable it
 
 - Use the `NonBacktracking` option in your modifier string
-  - CLI: `-m b`
+  - CLI: `-flags b`
+  - Only available in PowerShell 7 (.NET 7+); Windows PowerShell 5.1 reports an error
 
+
+## Tests
+
+`tests/Test-ClipGre.ps1` runs the script with many option combinations and checks output, clipboard and written files. It needs no extra modules (no Pester) and uses a simulated clipboard, so your real clipboard is not touched:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tests\Test-ClipGre.ps1
+```
+
+The exit code is the number of failed checks. Interactive prompts are not covered.
 
 ## Why PowerShell?
 
@@ -375,7 +380,7 @@ Below are extended examples demonstrating further functionality of the script:
 
 ```powershell
 # Benchmark a regex search operation in a loop applied to a file
-clipGre.ps1 -r '(\d+?|\D+)' -benchmark -loop 10 -ff 'data.db'
+clipGre.ps1 -r '(\d+?|\D+)' -Benchmark -Repeat 10 -Path 'data.db'
 
 # regex search & replace with flags (clipbaord)
 clipGre.ps1 -r '-.-' ', ' 'ms'
@@ -384,7 +389,7 @@ clipGre.ps1 -r '-.-' ', ' 'ms'
 clipGre.ps1 '|'  '{!}' 
 
 # very explicit search and search & replace with persisting terminal for reading output
-clipGre.ps1 -r -search '-.-' -replace ', ' -flags 'ms' -substitute -grep -persist
+clipGre.ps1 -r -search '-.-' -replace ', ' -flags 'ms' -Substitute -Grep -PauseAtEnd
 
 # regex search & replace with groups (clipbaord)
 clipGre.ps1 -r '- . (\d+) . -' ' $1 ' 'msx'
@@ -392,9 +397,9 @@ clipGre.ps1 -r '- . (\d+) . -' ' $1 ' 'msx'
 # regex search & replace with lists of regexes from files, pattern mapping search to replace line by line
 clipGre.ps1 -r -searchFile "regex-list.txt" -replaceFile "replacements.txt" "msi"
 
-# regex search & replace with lists of regexes from files, every file one pattern (-wholeFile / -f) 
+# regex search & replace with lists of regexes from files, every file one pattern (-PatternPerFile) 
 # free formatable regex flag x added
-clipGre.ps1 -r -searchFile "regex-list.txt" -replaceFile "replacements.txt" "xi" -f
+clipGre.ps1 -r -searchFile "regex-list.txt" -replaceFile "replacements.txt" "xi" -PatternPerFile
 
 # Accepts arrays as search/replace strings, e.g. redacting names, e-mails or other patterns
 # Option names (-search and -replace) may be omitted if order is kept
@@ -414,9 +419,52 @@ clipGre.ps1 −r 'Surf([a−zA−Z]{1,2})','Surf−' 'SurfO$1+0.5','SurfO−0.5�
 clipGre.ps1 -r '[\n\r]+' "`t"
 
 # get overview over a python file (classes, methods, returns)
-clipGre.ps1 -r '\s*def\s+(\w+\.)*\w+\(.*?\):|\s*class\s+(\w+\.)*\w+(\(.*?\))?:|\s*return.*$' -ff "solver.py" -plain "" -flags m
+clipGre.ps1 -r '\s*def\s+(\w+\.)*\w+\(.*?\):|\s*class\s+(\w+\.)*\w+(\(.*?\))?:|\s*return.*$' -Path "solver.py" -Separator '' -flags m
 
 # search your project folder for python docstrings
-clipGre.ps1 -r '("""|'''''' ).*?\1' -ff "."
+clipGre.ps1 -r '("""|'''''' ).*?\1' -Path "." -Recurse
+
+# build your own list: all e-mail addresses of the clipboard, comma separated
+clipGre.ps1 -r '\b[\w.%+-]+@[\w.-]+\.[A-Za-z]{2,}\b' -Separator ', '
+
+# save all URLs of the clipboard to a file, one per line (C:\Temp\urls_<timestamp>.txt)
+clipGre.ps1 -r 'https?://\S+' -OnlyMatching -OutFile 'C:\Temp\urls.txt'
+
+# extract all dates (German/English formats) using the multi-line regex from assets, one per line
+clipGre.ps1 -r -SearchFile 'assets\matchEngGerDate.txt' -PatternPerFile -Separator '\n'
+
+# which log files contain "error" (any case)? only file names, including subfolders
+clipGre.ps1 'error' -i -Path 'C:\logs' -Recurse -FilesWithMatches
+
+# count TODOs in every PowerShell script of the current folder
+clipGre.ps1 'TODO' -Path '*.ps1' -CountOnly
+
+# show everything except comment lines ('m' lets ^ match at every line start)
+clipGre.ps1 -r '^\s*#' -InvertMatch -flags m
+
+# show 3 lines around every exception in a log file and save the result
+clipGre.ps1 'Exception' -C 3 -Path 'app.log' -Save
+
+# rename a term in all files of a project, written directly into the files (backup: *.bak)
+clipGre.ps1 'oldName' 'newName' -Path 'C:\project\src' -Recurse -InPlace
+
+# pseudonymise names - and undo it later with the very same arguments plus -Swap
+clipGre.ps1 'Alice','Bob' 'Person A','Person B'
+clipGre.ps1 'Alice','Bob' 'Person A','Person B' -Swap
+
+# many replacements maintained in one file (lines: search, replace, search, replace, ...)
+clipGre.ps1 -PairFile 'C:\Tools\clipGreps\redactions.txt'
+
+# hunt for invisible characters (non-breaking spaces, tabs, CR/LF) in the clipboard
+clipGre.ps1 -CharMap -ShowWhitespace -SortBy Char
+
+# does the clipboard contain non-ASCII characters? how many bytes in UTF-8?
+clipGre.ps1 -TextMetrics
+
+# watch the clipboard: filter it for 'ERROR' every 2 seconds until Ctrl+C
+clipGre.ps1 'ERROR' -oo -Delay 2
+
+# desktop shortcut: always ask for a regex substitution, keep the window open for reading
+powershell.exe -ExecutionPolicy Bypass -File "C:\Tools\clipGreps\clipGre.ps1" -Interactive -Substitute -r -PauseAtEnd
 
 ```
