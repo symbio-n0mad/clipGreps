@@ -186,7 +186,10 @@ Grep and substitution can be combined: grep shows the matches in the original te
   - Removes the matches, replacements are ignored
 
 - **Swap** (`-Swap` / `-reverse`)
-  - Swaps search and replacement, e.g. to undo a literal substitution
+  - Undoes a literal substitution with the same arguments: search and replacement are swapped
+  - The pairs are applied in **reverse order**, so chains like `A→B`, `B→C` are undone correctly (`C→B`, then `B→A`)
+  - Pairs with an empty replacement (deletions) are **skipped** with a warning - deleted text cannot be restored
+  - Regex substitutions can generally not be undone this way (a warning is shown)
 
 ---
 
@@ -420,5 +423,48 @@ clipGre.ps1 -r '\s*def\s+(\w+\.)*\w+\(.*?\):|\s*class\s+(\w+\.)*\w+(\(.*?\))?:|\
 
 # search your project folder for python docstrings
 clipGre.ps1 -r '("""|'''''' ).*?\1' -Path "." -Recurse
+
+# build your own list: all e-mail addresses of the clipboard, comma separated
+clipGre.ps1 -r '\b[\w.%+-]+@[\w.-]+\.[A-Za-z]{2,}\b' -Separator ', '
+
+# save all URLs of the clipboard to a file, one per line (C:\Temp\urls_<timestamp>.txt)
+clipGre.ps1 -r 'https?://\S+' -OnlyMatching -OutFile 'C:\Temp\urls.txt'
+
+# extract all dates (German/English formats) using the multi-line regex from assets, one per line
+clipGre.ps1 -r -SearchFile 'assets\matchEngGerDate.txt' -PatternPerFile -Separator '\n'
+
+# which log files contain "error" (any case)? only file names, including subfolders
+clipGre.ps1 'error' -i -Path 'C:\logs' -Recurse -FilesWithMatches
+
+# count TODOs in every PowerShell script of the current folder
+clipGre.ps1 'TODO' -Path '*.ps1' -CountOnly
+
+# show everything except comment lines ('m' lets ^ match at every line start)
+clipGre.ps1 -r '^\s*#' -InvertMatch -flags m
+
+# show 3 lines around every exception in a log file and save the result
+clipGre.ps1 'Exception' -C 3 -Path 'app.log' -Save
+
+# rename a term in all files of a project, written directly into the files (backup: *.bak)
+clipGre.ps1 'oldName' 'newName' -Path 'C:\project\src' -Recurse -InPlace
+
+# pseudonymise names - and undo it later with the very same arguments plus -Swap
+clipGre.ps1 'Alice','Bob' 'Person A','Person B'
+clipGre.ps1 'Alice','Bob' 'Person A','Person B' -Swap
+
+# many replacements maintained in one file (lines: search, replace, search, replace, ...)
+clipGre.ps1 -PairFile 'C:\Tools\clipGreps\redactions.txt'
+
+# hunt for invisible characters (non-breaking spaces, tabs, CR/LF) in the clipboard
+clipGre.ps1 -CharMap -ShowWhitespace -SortBy Char
+
+# does the clipboard contain non-ASCII characters? how many bytes in UTF-8?
+clipGre.ps1 -TextMetrics
+
+# watch the clipboard: filter it for 'ERROR' every 2 seconds until Ctrl+C
+clipGre.ps1 'ERROR' -oo -Delay 2
+
+# desktop shortcut: always ask for a regex substitution, keep the window open for reading
+powershell.exe -ExecutionPolicy Bypass -File "C:\Tools\clipGreps\clipGre.ps1" -Interactive -Substitute -r -PauseAtEnd
 
 ```

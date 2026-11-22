@@ -1038,7 +1038,8 @@ MODE (usually inferred: search only = grep, search + replacement = substitution)
   -Grep                      Show matching lines
   -Substitute                Replace matches
   -Delete                    Delete matches
-  -Swap, -reverse            Swap search and replacement (undo a literal substitution)
+  -Swap, -reverse            Undo a literal substitution: swap search and replacement,
+                             apply pairs in reverse order, skip deletions
 
 INPUT (default: clipboard)
   -Path, -files <path[]>     File(s), folder(s) or wildcards to process instead of the clipboard
@@ -1181,6 +1182,15 @@ function Invoke-SingleRun {
     foreach ($pair in $patternPairs) {
         if ($State.Delete) { $pair.Replace = '' }
         if ($Settings.Swap) { $pair.Search, $pair.Replace = $pair.Replace, $pair.Search }
+    }
+    if ($Settings.Swap) {
+        # Undo in reverse order: "A->B, B->C" is undone by "C->B" first, then "B->A".
+        $patternPairs.Reverse()
+        # A deletion cannot be undone: its empty search pattern would insert text everywhere.
+        $deletions = $patternPairs.RemoveAll([Predicate[object]] { param($pair) $pair.Search.Length -eq 0 })
+        if ($deletions -gt 0) {
+            Write-Warning "-Swap: skipped $deletions pair(s) with empty replacement - a deletion cannot be swapped."
+        }
     }
     $compiledPairs = @(ConvertTo-CompiledPairs -Pairs $patternPairs.ToArray() -IsRegex $isRegex -Options $regexOptions)
 

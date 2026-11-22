@@ -139,6 +139,13 @@ try {
     $r = Invoke-ClipGre -Clipboard 'xyz' -Arguments @('abc', 'y') -Options @{ Swap = $true }
     Assert-Equal $r.Clipboard 'xabcz' '-Swap swaps search and replacement'
 
+    $r = Invoke-ClipGre -Clipboard 'C' -Options @{ Search = @('A', 'B'); Replace = @('B', 'C'); Swap = $true }
+    Assert-Equal $r.Clipboard 'A' '-Swap undoes a chain in reverse order'
+
+    $r = Invoke-ClipGre -Clipboard 'Y' -Options @{ Search = @('x', 'z'); Replace = @('Y', ''); Swap = $true }
+    Assert-Equal $r.Clipboard 'x' '-Swap skips deletions'
+    Assert-Contains $r.Output 'a deletion cannot be swapped' '-Swap warns about skipped deletions'
+
     $r = Invoke-ClipGre -Clipboard 'ab' -Arguments @('', '-')
     Assert-Equal $r.Clipboard '-a-b-' 'empty search pattern matches everywhere'
     Assert-Contains $r.Output 'Empty search pattern' 'empty search pattern gives a warning'
