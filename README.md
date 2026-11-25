@@ -73,18 +73,17 @@ To call the script from **any directory**, add its location to your user `PATH` 
 
 ### Setup Steps
 
-1. **Move the Script**
-   - Place `clipGre.ps1` in a stable directory, e.g.:
+1. **Move the Script `clipGre.ps1` to a stable directory like**
      ```
      C:\Tools\clipGreps\
      ```
 
-2. **Add Directory to PATH (PowerShell One-Liner)**
+2. **Add directory to PATH with this PowerShell One-Liner**
    ```
    $p='C:\Tools\clipGreps';[Environment]::SetEnvironmentVariable('Path',[Environment]::GetEnvironmentVariable('Path','User')+';'+$p,'User')
    ```
 
-3. **Make the new PATH available immediately or restart the terminal**
+3. **Restart the terminal or make the new PATH available immediately**
    ```
     $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + [Environment]::GetEnvironmentVariable('Path', 'Machine')
    ```
