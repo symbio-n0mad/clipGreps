@@ -10,8 +10,10 @@
     Run "clipGre.ps1 -h" for an overview of all options.
 
 .NOTES
-    Must run on Windows PowerShell 5.1. Keep this file ASCII-only: PowerShell 5.1 reads
-    script files without BOM in the ANSI code page, so non-ASCII literals would break.
+    Runs on Windows PowerShell 5.1 and newer, including PowerShell 7. Features that need a
+    newer version (regex flag 'b') report this instead of failing.
+    Keep this file ASCII-only: PowerShell 5.1 reads script files without BOM in the ANSI
+    code page, so non-ASCII literals would break there.
 #>
 [CmdletBinding()]
 param (
